@@ -66,7 +66,7 @@ export default function LandingPage() {
 
       {/* Hero */}
       <section className="z-10 flex flex-col items-center justify-center text-center px-6 py-20">
-        <h1 className="text-4xl md:text-6xl font-extrabold leading-tight max-w-3xl">
+        <h1 className="text-3xl md:text-5xl font-extrabold leading-tight max-w-3xl">
           The digital backstage where raw sparks become unforgettable performances
         </h1>
         <Button
