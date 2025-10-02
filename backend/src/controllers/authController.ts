@@ -59,7 +59,8 @@ export const verifyOtp = async (req: Request, res: Response) => {
 };
 
 export const login = async (req: Request, res: Response) => {
-  const { email, password } = req.body;
+  const { email, password, role } = req.body;
+
   const user = await User.findOne({ email });
   if (!user) return res.status(400).json({ message: "User not found" });
   if (!user.isVerified)
@@ -81,6 +82,37 @@ export const login = async (req: Request, res: Response) => {
     process.env.JWT_SECRET as string,
     { expiresIn: "1h" }
   );
+  res.cookie("token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 1000 * 60 * 60, 
+  });
 
-  res.json({ message: "Login successful", token });
+  res.json({ message: "Login successful", redirectUrl: `/dashboard/${role}` });
+};
+
+export const googleCallback = async (req: any, res: Response) => {
+  try {
+    const state = req.query.state ? JSON.parse(req.query.state as string) : {};
+    const role = state.role || req.user.user.role || "performer";
+
+    const token = jwt.sign(
+      { id: req.user.user._id, email: req.user.user.email, role },
+      process.env.JWT_SECRET as string,
+      { expiresIn: "1d" }
+    );
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 1000 * 60 * 60 * 24,
+    });
+
+    res.redirect(`http://localhost:3000/dashboard/${role}`);
+  } catch (err) {
+    console.error("Google callback error:", err);
+    res.redirect("http://localhost:3000/login?error=OAuthFailed");
+  }
 };

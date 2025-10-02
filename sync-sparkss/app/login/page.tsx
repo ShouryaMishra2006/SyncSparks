@@ -25,12 +25,12 @@ export default function LoginPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, role }),
+        credentials: "include", 
       })
 
       const data = await res.json()
       if (res.ok) {
-        alert("Login successful!")
-        window.location.href = `/dashboard/${role}`
+        window.location.href = data.redirectUrl || `/dashboard/${role}`
       } else {
         alert(data.message || "Login failed")
       }
@@ -42,9 +42,15 @@ export default function LoginPage() {
     }
   }
 
+  const handleOAuthLogin = () => {
+  const state = encodeURIComponent(JSON.stringify({ role }));
+  window.location.href = `http://localhost:4000/api/auth/google?state=${state}`;
+};
+
+
   return (
     <div className="relative min-h-screen flex flex-col bg-black text-white">
-      {/* Animated background */}
+      {/* Background */}
       <motion.div
         className="absolute inset-0 z-0"
         initial={{ opacity: 0 }}
@@ -112,7 +118,17 @@ export default function LoginPage() {
                 className="w-full bg-purple-600 hover:bg-purple-700"
                 disabled={loading}
               >
-                {loading ? "Logging in..." : "Login"}
+                {loading ? "Logging in..." : "Login with Email"}
+              </Button>
+
+              <div className="text-center text-sm mt-2">OR</div>
+
+              <Button
+                type="button"
+                onClick={handleOAuthLogin}
+                className="w-full bg-red-500 hover:bg-red-600"
+              >
+                Continue with Google
               </Button>
             </form>
           </CardContent>
