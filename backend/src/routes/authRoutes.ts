@@ -1,5 +1,6 @@
 import { Router } from "express"
 import passport from "passport";
+import { requireAuth } from "../middleware/authMiddleware"
 import { googleCallback,signup, verifyOtp, login } from "../controllers/authController"
 
 const router = Router()
@@ -19,6 +20,9 @@ router.get(
   googleCallback
 );
 
+router.get("/me", requireAuth, (req, res) => {
+  res.json({ user: req.user }) 
+})
 router.post("/signup", signup)
 router.post("/verify-otp", verifyOtp)
 router.post("/login", login)
