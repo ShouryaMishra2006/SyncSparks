@@ -21,8 +21,14 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
     if (!user) {
       return res.status(404).json({ message: "User not found" })
     }
-    console.log(user)
-    req.user = user
+    console.log("user decoded from token:",user)
+    req.user = {
+      _id: user._id,
+      name: user.name,
+      email:user.email,
+      isVerified: user.isVerified,
+    };
+
     next()
   } catch (err) {
     console.error("Auth error:", err)

@@ -1,5 +1,18 @@
 import mongoose from "mongoose"
 
+const performerExtensionSchema = new mongoose.Schema({
+  squadsJoined: [
+    {
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "PerformerSquad",
+    },
+  ],
+  ideas: [
+    {
+      type: String, 
+    },
+  ],
+})
 const userSchema = new mongoose.Schema({
   name: String,
   nickname: String,
@@ -12,6 +25,7 @@ const userSchema = new mongoose.Schema({
     code: String,
     expiresAt: Date,
   },
+  performer: performerExtensionSchema,
 })
 
 export default mongoose.model("User", userSchema)

@@ -98,7 +98,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="z-10 border-t border-white/20 py-6 px-6 flex justify-between text-sm">
-        <span>© 2025 Backstage. All rights reserved.</span>
+        <span>© 2025 SyncSparks. All rights reserved.</span>
         <div className="flex space-x-4">
           <Link href="/docs">Docs</Link>
           <Link href="https://github.com/">GitHub</Link>
