@@ -79,7 +79,7 @@ export default function SquadDashboard() {
         );
         const data = await res.json();
         if (res.ok) setSquad(data);
-        console.log(data)
+        console.log(data);
       } catch (err) {
         console.error("Error fetching squad:", err);
       }
@@ -135,19 +135,49 @@ export default function SquadDashboard() {
   };
 
   const handleSummarize = async () => {
-    setAiResult(squad?.aiSummary?.text || "✨ AI Summary placeholder");
+    if (!squad) return;
+    const countStr = prompt("How many last ideas do you want to summarize?");
+    if (!countStr) return;
+
+    const count = parseInt(countStr);
+    if (isNaN(count) || count <= 0) {
+      alert("Please enter a valid number");
+      return;
+    }
+    const lastIdeas = squad.ideas.slice(-count).map((idea) => idea.text);
+
+    try {
+      const res = await fetch(
+        `http://localhost:4000/api/performer/squads/${squad._id}/summarize`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ ideas: lastIdeas }),
+        }
+      );
+
+      const data = await res.json();
+      if (res.ok) {
+        setAiResult(data.summary);
+      } else {
+        alert(data.message || "Failed to summarize");
+      }
+    } catch (err) {
+      console.error("Error summarizing:", err);
+    }
   };
 
   const handleMindMap = async () => {
     setAiResult(
       squad?.aiMindMap?.data
         ? JSON.stringify(squad.aiMindMap.data, null, 2)
-        : "🧠 No Mind Map yet"
+        : " No Mind Map yet"
     );
   };
 
   const handleExpand = async () => {
-    setAiResult(squad?.aiExpansion?.text || "💡 Expanded idea placeholder");
+    setAiResult(squad?.aiExpansion?.text || " Expanded idea placeholder");
   };
 
   const handleShare = async (writerId: string) => {
@@ -195,8 +225,6 @@ export default function SquadDashboard() {
           <p className="text-gray-400 text-sm">{user.nickname}</p>
         </div>
       </header>
-
-      {/* Squad Info */}
       {/* Squad Info */}
       {squad && (
         <div className="mb-8 flex justify-center">

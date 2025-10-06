@@ -20,33 +20,42 @@ type Squad = {
 export default function PerformerDashboard() {
   const { user, loading, isAuthenticated } = useAuth();
   const router = useRouter();
-  const [squads, setSquads] = useState<Squad[]>([]);
+
+  const [availableSquads, setAvailableSquads] = useState<Squad[]>([]);
   const [mySquads, setMySquads] = useState<Squad[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newSquad, setNewSquad] = useState({ name: "", description: "" });
+
   useEffect(() => {
     const fetchSquads = async () => {
       try {
         const res = await fetch("http://localhost:4000/api/performer/squads", {
           credentials: "include",
         });
-        const data = await res.json();
-        if (res.ok) {
-          setSquads(data);
-          if (user?.email) {
-            setMySquads(
-              data.filter((s: Squad) => s.performers.includes(user.email))
-            );
-          } else {
-            setMySquads([]);
-          }
+        const data: Squad[] = await res.json();
+        if (res.ok && user?._id) {
+          console.log(user._id);
+          console.log(data);
+          const my = data.filter((s) =>
+            s.performers.some((p: any) => p._id === user._id)
+          );
+
+          const available = data.filter(
+            (s) => !s.performers.some((p: any) => p._id === user._id)
+          );
+
+          setMySquads(my);
+          console.log(my);
+
+          setAvailableSquads(available);
+          console.log(available);
         }
       } catch (err) {
         console.error("Error fetching squads:", err);
       }
     };
-    if (isAuthenticated) fetchSquads();
-  }, [isAuthenticated, user?.email]);
+    if (isAuthenticated && user?._id) fetchSquads();
+  }, [isAuthenticated, user?._id]);
 
   if (loading) return <div className="text-white p-10">Loading...</div>;
 
@@ -60,19 +69,22 @@ export default function PerformerDashboard() {
       </div>
     );
   }
+
   const handleCreateSquad = async () => {
     try {
-      const res = await fetch("http://localhost:4000/api/performer/createsquad", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(newSquad),
-      });
+      const res = await fetch(
+        "http://localhost:4000/api/performer/createsquad",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(newSquad),
+        }
+      );
       const data = await res.json();
       if (res.ok) {
         alert("Squad created successfully!");
-        //setMySquads(prev => [...prev, data]);
-        setSquads(prev => [...prev, data]);
+        setAvailableSquads((prev) => [...prev, data]);
         setShowCreateForm(false);
         setNewSquad({ name: "", description: "" });
       } else {
@@ -83,6 +95,7 @@ export default function PerformerDashboard() {
       alert("Server error");
     }
   };
+
   const handleJoinSquad = async (squadId: string) => {
     try {
       const res = await fetch(`http://localhost:4000/api/performer/join`, {
@@ -95,11 +108,11 @@ export default function PerformerDashboard() {
 
       if (res.ok) {
         alert(data.message);
-        const joinedSquad = squads.find(s => s._id === squadId);
-        if (joinedSquad) {
-          setMySquads(prev => [...prev, joinedSquad]);
-          setSquads(prev => prev.filter(s => s._id !== squadId));
-        }
+        const joinedSquad = availableSquads.find((s) => s._id === squadId);
+        if (!joinedSquad) return;
+
+        setMySquads((prev) => [...prev, joinedSquad]);
+        setAvailableSquads((prev) => prev.filter((s) => s._id !== squadId));
       } else {
         alert(data.message || "Failed to join");
       }
@@ -133,7 +146,11 @@ export default function PerformerDashboard() {
               x: [0, Math.random() * 200 - 100, 0],
               y: [0, Math.random() * 200 - 100, 0],
             }}
-            transition={{ repeat: Infinity, duration: 12 + i * 2, ease: "easeInOut" }}
+            transition={{
+              repeat: Infinity,
+              duration: 12 + i * 2,
+              ease: "easeInOut",
+            }}
           />
         ))}
       </motion.div>
@@ -164,13 +181,17 @@ export default function PerformerDashboard() {
                 placeholder="Squad Name"
                 className="mb-3"
                 value={newSquad.name}
-                onChange={e => setNewSquad({ ...newSquad, name: e.target.value })}
+                onChange={(e) =>
+                  setNewSquad({ ...newSquad, name: e.target.value })
+                }
               />
               <Textarea
                 placeholder="Squad Description"
                 className="mb-3"
                 value={newSquad.description}
-                onChange={e => setNewSquad({ ...newSquad, description: e.target.value })}
+                onChange={(e) =>
+                  setNewSquad({ ...newSquad, description: e.target.value })
+                }
               />
               <div className="flex gap-3">
                 <Button
@@ -179,7 +200,10 @@ export default function PerformerDashboard() {
                 >
                   Create
                 </Button>
-                <Button variant="outline" onClick={() => setShowCreateForm(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCreateForm(false)}
+                >
                   Cancel
                 </Button>
               </div>
@@ -190,35 +214,39 @@ export default function PerformerDashboard() {
         {/* Available Squads */}
         <section className="mb-16">
           <h2 className="text-2xl font-bold mb-6">Available Squads</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {squads.map(squad => (
-              <motion.div
-                key={squad._id}
-                whileHover={{ scale: 1.05 }}
-                className="rounded-2xl shadow-lg overflow-hidden border border-purple-600/40 bg-black/50"
-              >
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-xl">{squad.name}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-400 mb-4">
-                      {squad.description || "No description provided"}
-                    </p>
-                    <p className="text-xs text-gray-500 mb-2">
-                      Members: {squad.performers.length}
-                    </p>
-                    <Button
-                      className="w-full bg-purple-600 hover:bg-purple-700"
-                      onClick={() => handleJoinSquad(squad._id)}
-                    >
-                      Join Squad
-                    </Button>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
+          {availableSquads.length === 0 ? (
+            <p className="text-gray-400">No squads available to join.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              {availableSquads.map((squad) => (
+                <motion.div
+                  key={squad._id}
+                  whileHover={{ scale: 1.05 }}
+                  className="rounded-2xl shadow-lg overflow-hidden border border-purple-600/40 bg-black/50"
+                >
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-xl">{squad.name}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-gray-400 mb-4">
+                        {squad.description || "No description provided"}
+                      </p>
+                      <p className="text-xs text-gray-500 mb-2">
+                        Members: {squad.performers.length}
+                      </p>
+                      <Button
+                        className="w-full bg-purple-600 hover:bg-purple-700"
+                        onClick={() => handleJoinSquad(squad._id)}
+                      >
+                        Join Squad
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* My Squads */}
@@ -228,7 +256,7 @@ export default function PerformerDashboard() {
             <p className="text-gray-400">You haven’t joined any squads yet.</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {mySquads.map(squad => (
+              {mySquads.map((squad) => (
                 <motion.div
                   key={squad._id}
                   whileHover={{ scale: 1.05 }}

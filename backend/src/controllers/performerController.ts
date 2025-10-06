@@ -43,7 +43,7 @@ export const createSquad = async (req: Request, res: Response) => {
 
 export const getSquads = async (req: Request, res: Response) => {
   try {
-    const squads = await PerformerSquad.find().populate("performers", "name nickname email");
+    const squads = await PerformerSquad.find().populate("performers", "_id name nickname email");
     return res.json(squads);
   } catch (err) {
     console.error(err);
