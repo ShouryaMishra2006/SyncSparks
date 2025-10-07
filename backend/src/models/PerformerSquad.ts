@@ -1,14 +1,14 @@
-import mongoose, { Schema } from "mongoose"
+import mongoose, { Schema } from "mongoose";
 
 const performerSquadSchema = new Schema(
   {
     name: { type: String, required: true },
-    description: { type: String }, 
+    description: { type: String },
 
     performers: [
       {
         type: Schema.Types.ObjectId,
-        ref: "User", 
+        ref: "User",
       },
     ],
 
@@ -25,19 +25,22 @@ const performerSquadSchema = new Schema(
       },
     ],
     aiSummary: {
-      text: String, 
+      text: String,
       createdAt: Date,
     },
     aiExpansion: {
-      text: String, 
+      text: String,
       createdAt: Date,
     },
     aiMindMap: {
       data: Schema.Types.Mixed,
       createdAt: Date,
     },
+    invitationCode: {
+      text: String,
+    },
   },
   { timestamps: true }
-)
+);
 
-export default mongoose.model("PerformerSquad", performerSquadSchema)
+export default mongoose.model("PerformerSquad", performerSquadSchema);
