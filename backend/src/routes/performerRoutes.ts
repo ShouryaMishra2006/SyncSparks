@@ -1,6 +1,6 @@
 import express from "express";
 import { requireAuth } from "../middleware/authMiddleware";
-import { joinSquad,createSquad, getSquads, getSquadDetails, addIdea } from "../controllers/performerController";
+import { joinSquad,createSquad, getSquads, getSquadDetails, addIdea,searchIdeas } from "../controllers/performerController";
 import { summarizeIdeas } from "../controllers/aiController";
 const router = express.Router();
 
@@ -10,4 +10,5 @@ router.post("/createsquad", requireAuth, createSquad);
 router.post("/join",requireAuth,joinSquad)
 router.post("/squads/:squadId/idea",requireAuth,addIdea)
 router.post("/squads/:id/summarize", requireAuth, summarizeIdeas);
+router.post("/squads/search-ideas",requireAuth,searchIdeas)
 export default router;

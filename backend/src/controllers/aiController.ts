@@ -19,28 +19,42 @@ export const summarizeIdeas = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Squad not found" });
     }
 
-    console.log("squad from param squad id:", squad);
-
+    console.log("Received ideas:", ideas);
+    const formattedIdeas = ideas
+      .map((it: any, idx: number) => {
+        const author = it?.author || "Anonymous";
+        const text = it?.text || it || "";
+        return `${idx + 1}. (${author}) ${text}`;
+      })
+      .join("\n\n");
     const promptText = `
-You are a creative summarizer. Given the following ideas (text + author), produce:
-1) A concise 3-4 sentence summary capturing the core themes.
-2) 5 short bullet action-items or highlights extracted from ideas.
-3) 1 suggested title for the summarized idea.
+You are a creative summarizer AI.
 
-Return JSON with keys: "title", "summary", and "bullets" (array of strings).
+Given the following list of ideas, each optionally tagged with an author,
+write a short summary capturing the overall message.
+
+Then provide:
+1. A concise 3-4 sentence summary capturing the main insights.
+2. 5 actionable or highlight bullet points.
+3. A short, catchy title for the set of ideas.
+
+Return valid JSON with the following keys:
+{
+  "title": string,
+  "summary": string,
+  "bullets": string[]
+}
 
 Ideas:
-${ideas
-  .map(
-    (it: any, idx: number) => `${idx + 1}. (${it.author || "Anon"}) ${it.text}`
-  )
-  .join("\n\n")}
+${formattedIdeas}
 `;
+
     const llm = new ChatGoogleGenerativeAI({
       model: "models/gemini-2.0-flash",
       apiKey: process.env.GOOGLE_API_KEY,
       temperature: 0.3,
     });
+
     const prompt = new PromptTemplate({
       template: "{input}",
       inputVariables: ["input"],
@@ -48,24 +62,19 @@ ${ideas
 
     const finalPrompt = await prompt.format({ input: promptText });
     const response = await llm.invoke(finalPrompt);
-
     let rawText = "";
-
     if (typeof response.content === "string") {
       rawText = response.content;
     } else if (Array.isArray(response.content)) {
       rawText = response.content
-        .map((part: any) =>
-          typeof part === "string" ? part : part?.text || ""
-        )
+        .map((part: any) => (typeof part === "string" ? part : part?.text || ""))
         .join(" ")
         .trim();
     } else {
       rawText = String(response.content ?? "");
     }
 
-    console.log("Gemini summarized this as rawText:", rawText);
-
+    console.log(" Gemini rawText:", rawText);
     let parsed: any = null;
     try {
       const jsonStart = rawText.indexOf("{");
@@ -77,6 +86,7 @@ ${ideas
     } catch (e) {
       console.error("JSON parse error:", e);
     }
+
     const summaryObj = parsed
       ? {
           title: parsed.title ?? "",
@@ -98,11 +108,11 @@ ${ideas
       text: summaryObj.text,
       createdAt: summaryObj.createdAt,
     };
-    squad.aiExpansion = squad.aiExpansion ?? { text: "", createdAt: undefined };
-    squad.aiMindMap = squad.aiMindMap ?? { data: null, createdAt: undefined };
+    squad.aiExpansion ??= { text: "", createdAt: undefined };
+    squad.aiMindMap ??= { data: null, createdAt: undefined };
 
     await squad.save();
-
+    console.log(summaryObj)
     return res.status(200).json({
       message: "Summarized successfully",
       summary: summaryObj,

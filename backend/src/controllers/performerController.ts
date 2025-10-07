@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import PerformerSquad from "../models/PerformerSquad";
 import mongoose from "mongoose";
+import { PipelineStage } from "mongoose";
 import User from "../models/User";
 interface AuthUser {
   _id: string; 
@@ -141,5 +142,62 @@ export const addIdea = async (req: Request, res: Response) => {
   } catch (err) {
     console.error("Error adding idea:", err);
     return res.status(500).json({ message: "Server error" });
+  }
+};
+interface SearchIdeasQuery {
+  q?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export const searchIdeas = async (
+  req: Request<{}, {}, {}, SearchIdeasQuery>,
+  res: Response
+) => {
+  try {
+    const {  startDate, endDate } = req.query;
+    const q = req.query.q?.trim();
+
+    console.log("query:",q)
+    const matchConditions: any[] = [];
+    if (q) {
+      matchConditions.push({
+        "ideas.text": { $regex: q, $options: "i" },
+      });
+    }
+    if (startDate && endDate) {
+      matchConditions.push({
+        "ideas.createdAt": {
+          $gte: new Date(startDate),
+          $lte: new Date(endDate),
+        },
+      });
+    }
+    console.log("match with:",matchConditions)
+    const pipeline: PipelineStage[] = [];
+    pipeline.push({ $unwind: "$ideas" });
+    if (matchConditions.length > 0) {
+      pipeline.push({ $match: { $and: matchConditions } });
+    }
+    pipeline.push({
+      $project: {
+        _id: 0,
+        squadId: "$_id",
+        name: 1,
+        ideaText: "$ideas.text",
+        createdBy: "$ideas.createdBy",
+        createdAt: "$ideas.createdAt",
+        category: "$ideas.category",
+      },
+    });
+
+    pipeline.push({ $sort: { createdAt: -1 } });
+    console.log("pipeline:",pipeline)
+    const ideas = await PerformerSquad.aggregate(pipeline);
+
+    res.status(200).json({ ideas });
+  } catch (error) {
+    console.error("Error searching ideas:", error);
+    res.status(500).json({ message: "Error searching ideas" });
   }
 };
