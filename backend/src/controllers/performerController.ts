@@ -2,8 +2,10 @@ import { Request, Response } from "express";
 import PerformerSquad from "../models/PerformerSquad";
 import mongoose from "mongoose";
 import User from "../models/User";
+import crypto from "crypto";
+
 interface AuthUser {
-  _id: string; 
+  _id: string;
   name: string;
   email: string;
   isVerified: boolean;
@@ -11,16 +13,23 @@ interface AuthUser {
 
 export const createSquad = async (req: Request, res: Response) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, public: isPublic } = req.body;
 
     if (!name) {
       return res.status(400).json({ message: "Squad name is required" });
     }
-    const performer= req.user as AuthUser;
+    const performer = req.user as AuthUser;
 
     if (!performer) {
       return res.status(401).json({ message: "Unauthorized" });
     }
+
+    let invitationCode = null;
+    if (!isPublic) {
+      // Generate a secure random invitation code for PRIVATE squads (8 characters, alphanumeric)
+      invitationCode = crypto.randomBytes(4).toString("hex").toUpperCase();
+    }
+
     const squad = new PerformerSquad({
       name,
       description,
@@ -28,8 +37,9 @@ export const createSquad = async (req: Request, res: Response) => {
       aiSummarized: "",
       aiExpanded: "",
       mindMap: "",
+      invitationCode: invitationCode ? { text: invitationCode } : undefined,
     });
-    console.log("updated squad :",squad)
+    console.log("updated squad :", squad);
     await squad.save();
     await User.findByIdAndUpdate(performer._id, {
       $push: { "performer.squadsJoined": squad._id },
@@ -43,6 +53,7 @@ export const createSquad = async (req: Request, res: Response) => {
 
 export const getSquads = async (req: Request, res: Response) => {
   try {
+    // Only return public squads (squads without invitation codes)
     const squads = await PerformerSquad.find().populate("performers", "_id name nickname email");
     return res.json(squads);
   } catch (err) {
@@ -52,21 +63,54 @@ export const getSquads = async (req: Request, res: Response) => {
 };
 export const joinSquad = async (req: Request, res: Response) => {
   try {
-    const { squadId } = req.body;
+    const { squadId, invitationCode } = req.body;
     const performer = req.user as AuthUser;
 
     if (!performer) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const squad = await PerformerSquad.findById(squadId);
-    if (!squad) {
-      return res.status(404).json({ message: "Squad not found" });
+    let squad;
+
+    // If only invitation code is provided, find squad by code
+    if (!squadId && invitationCode) {
+      squad = await PerformerSquad.findOne({
+        "invitationCode.text": invitationCode,
+      });
+
+      if (!squad) {
+        return res.status(404).json({ message: "Invalid invitation code" });
+      }
+    } else if (squadId) {
+      squad = await PerformerSquad.findById(squadId);
+
+      if (!squad) {
+        return res.status(404).json({ message: "Squad not found" });
+      }
+
+      // Check if squad requires invitation code
+      if (squad.invitationCode && squad.invitationCode.text) {
+        if (!invitationCode) {
+          return res.status(400).json({
+            message: "Invitation code required for this private squad",
+          });
+        }
+        if (invitationCode !== squad.invitationCode.text) {
+          return res.status(403).json({ message: "Invalid invitation code" });
+        }
+      }
+    } else {
+      return res
+        .status(400)
+        .json({ message: "Squad ID or invitation code required" });
     }
+
     const performerId = performer._id.toString();
-    const hasJoined = squad.performers.some(p => p.toString() === performerId);
+    const hasJoined = squad.performers.some(
+      (p) => p.toString() === performerId
+    );
     if (hasJoined) {
-      console.log("checked")
+      console.log("checked");
       return res.status(200).json({ message: "Already joined", squad });
     }
     squad.performers.push(new mongoose.Types.ObjectId(performer._id));
@@ -88,7 +132,7 @@ export const getSquadDetails = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Invalid squad ID" });
     }
     const squad = await PerformerSquad.findById(id)
-      .populate("performers", "name nickname email") 
+      .populate("performers", "name nickname email")
       .populate("ideas.createdBy", "name nickname email");
 
     if (!squad) {
@@ -104,8 +148,8 @@ export const getSquadDetails = async (req: Request, res: Response) => {
 export const addIdea = async (req: Request, res: Response) => {
   try {
     const { squadId } = req.params;
-    const { text} = req.body; 
-    const performer = req.user as AuthUser; 
+    const { text } = req.body;
+    const performer = req.user as AuthUser;
 
     if (!performer) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -125,7 +169,7 @@ export const addIdea = async (req: Request, res: Response) => {
     const newIdea = {
       text,
       createdBy: performer._id,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
     squad.ideas.push(newIdea as any);
     await squad.save();
