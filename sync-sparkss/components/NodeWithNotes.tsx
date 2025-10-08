@@ -1,131 +1,3 @@
-// frontend/components/NodeWithNotes.tsx
-// "use client";
-// import React, { useState, useEffect } from "react";
-// import { Handle, Position, NodeProps } from "reactflow";
-// import { MindNodeData } from "../types/mindmap";
-
-// type Props = NodeProps<MindNodeData>;
-// type Data = {
-//   label: string;
-//   explanation?: string;
-//   color?: string;
-//   onLabelChange?: (label: string) => void;
-//   onColorChange?: (color: string) => void;
-// };
-
-
-// // Safe Tailwind color styles (for background + border)
-// const colorStyles: Record<string, string> = {
-//   blue: "bg-blue-50 border-blue-300",
-//   green: "bg-green-50 border-green-300",
-//   red: "bg-red-50 border-red-300",
-//   yellow: "bg-yellow-50 border-yellow-300",
-//   purple: "bg-purple-50 border-purple-300",
-//   gray: "bg-gray-50 border-gray-300",
-// };
-
-// export default function NodeWithNotes({ data, id, selected }: NodeProps<Data>) {
-//   const [editing, setEditing] = useState(false);
-//   const [label, setLabel] = useState(data.label || "");
-//   const [notes, setNotes] = useState(data.notes || "");
-//   const [showNotes, setShowNotes] = useState(false);
-
-//   // 🔄 Sync with backend when data changes externally (from AI sync or load)
-//   useEffect(() => {
-//     setLabel(data.label || "");
-//     setNotes(data.notes || "");
-//   }, [data.label, data.notes]);
-
-//   // 💾 Save changes (label, notes, color)
-//   const saveLocal = () => {
-//     if (typeof data.onSave === "function") {
-//       data.onSave({
-//         id,
-//         label,
-//         notes,
-//         color: data.color,
-//       });
-//     }
-//     setEditing(false);
-//   };
-
-//   // 🟦 Style based on color
-//   const cls = data.color ? colorStyles[data.color] || colorStyles.gray : colorStyles.gray;
-
-//   return (
-//     <div
-//       className={`rounded-lg border p-3 w-56 shadow-sm transition-all duration-200 ${cls} ${
-//         selected ? "ring-2 ring-blue-400" : ""
-//       }`}
-//     >
-//       {/* Handles for React Flow connections */}
-//       <Handle type="target" position={Position.Left} />
-
-//       {/* Node Header */}
-//       <div className="flex items-start justify-between gap-2">
-//         {/* Node Label */}
-//         <div>
-//           {!editing ? (
-//             <div
-//               onDoubleClick={() => setEditing(true)}
-//               className="font-semibold text-gray-800 break-words"
-//             >
-//               {label || "Untitled Node"}
-//             </div>
-//           ) : (
-//             <input
-//               className="border rounded px-2 py-1 text-sm w-full"
-//               value={label}
-//               onChange={(e) => setLabel(e.target.value)}
-//               onBlur={saveLocal}
-//               onKeyDown={(e) => e.key === "Enter" && saveLocal()}
-//               autoFocus
-//             />
-//           )}
-//         </div>
-
-//         {/* Selected Indicator */}
-//         {selected && (
-//           <span className="text-xs px-1 py-0.5 bg-white/60 rounded text-gray-600">●</span>
-//         )}
-//       </div>
-
-//       {/* Controls */}
-//       <div className="mt-2 flex items-center justify-between gap-2">
-//         <button
-//           className="text-xs text-blue-600 hover:underline"
-//           onClick={() => setShowNotes((s) => !s)}
-//         >
-//           {showNotes ? "Hide notes" : "Notes"}
-//         </button>
-
-//         <button
-//           className="text-xs text-gray-600 hover:text-gray-900"
-//           onClick={() => setEditing((s) => !s)}
-//         >
-//           {editing ? "Close" : "Edit"}
-//         </button>
-//       </div>
-
-//       {/* Notes Editor */}
-//       {showNotes && (
-//         <div className="mt-2 p-2 bg-white rounded text-xs text-gray-700 border">
-//           <textarea
-//             value={notes}
-//             onChange={(e) => setNotes(e.target.value)}
-//             className="w-full text-xs resize-none outline-none border-none focus:ring-0"
-//             rows={4}
-//             onBlur={saveLocal}
-//           />
-//         </div>
-//       )}
-
-//       <Handle type="source" position={Position.Right} />
-//     </div>
-//   );
-// }
-
-
 
 "use client";
 
@@ -259,11 +131,14 @@ export default function NodeWithNotes({ data }: Props) {
               className="cursor-pointer whitespace-pre-wrap"
               onClick={() => setEditingNotes(true)}
               >
+                <div className="node-notes-export" style={{ display: editingNotes ? "block" : "block" }}>
+
               {notes.trim() ? (
                 notes
               ) : (
                 <span className="text-gray-400">No notes yet</span>
               )}
+              </div>
             </div>
           )}
         </div>

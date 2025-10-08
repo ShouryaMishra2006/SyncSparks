@@ -86,44 +86,12 @@ const edgesInitial = React.useMemo(() => initialData?.edges || [], [initialData?
     [setEdges]
   );
 
-  // 📸 Export as image (JPG)
-  const handleExportImage = async () => {
-    const flow = document.querySelector(".react-flow__viewport") as HTMLElement;
-    if (!flow) return;
-    console.log(flow)
-    const canvas = await html2canvas(flow);
-    const imgData = canvas.toDataURL("image/jpeg", 1.0);
-    const link = document.createElement("a");
-    link.download = `mindmap-${mapId}.jpg`;
-    link.href = imgData;
-    link.click();
-  };
-
-  // 📄 Export as PDF
-  const handleExportPDF = async () => {
-    const flow = document.querySelector(".react-flow__viewport") as HTMLElement;
-    if (!flow) return;
-    const canvas = await html2canvas(flow);
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: "a4" });
-    const imgProps = pdf.getImageProperties(imgData);
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-    pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`mindmap-${mapId}.pdf`);
-  };
-
   
 
   return (
     <div className="relative h-[70vh] w-full bg-gradient-to-br from-purple-950 via-black to-indigo-950 rounded-xl border border-purple-700 overflow-hidden">
       <div className="absolute top-3 right-3 flex gap-2 z-10">
-        <Button variant="secondary" onClick={handleExportImage}>
-          <Download className="w-4 h-4 mr-1" /> JPG
-        </Button>
-        <Button variant="secondary" onClick={handleExportPDF}>
-          <Download className="w-4 h-4 mr-1" /> PDF
-        </Button>
+        
         <Button variant="default" onClick={handleOpenEditor}>
           <Pencil className="w-4 h-4 mr-1" /> Open Editor
         </Button>

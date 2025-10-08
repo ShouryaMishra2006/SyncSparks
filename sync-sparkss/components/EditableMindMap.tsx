@@ -11,6 +11,7 @@ import ReactFlow, {
   Node,
   Edge,
   Connection,
+  
 } from "reactflow";
 import "reactflow/dist/style.css";
 import NodeWithNotes from "./NodeWithNotes";
@@ -28,7 +29,9 @@ import {
 } from "@/components/ui/select";
 const { v4: uuidv4 } = require("uuid");
 import { MindNodeData } from "@/types/mindmap";
+import { useParams } from "next/navigation";
 
+import DownloadMindMap from "./DownloadMindMap";
 
 const nodeTypes = { customNode: NodeWithNotes };
 
@@ -39,10 +42,17 @@ type EditableMindMapProps = {
 };
 
 export default function EditableMindMap({
+
   initialNodes,
   initialEdges,
   onCloseEditor,
 }: EditableMindMapProps) {
+const flowWrapperRef = useRef<HTMLDivElement>(null);
+ const params = useParams();
+ 
+  const mapId = params.mapId; // dynamic route param
+if (!mapId) throw new Error("mapId is missing from params");
+
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -60,6 +70,9 @@ export default function EditableMindMap({
 
   const [edgeFromNode, setEdgeFromNode] = useState<string | null>(null);
   const [edgeToNode, setEdgeToNode] = useState<string | null>(null);
+
+
+
 
   const startResizing = useCallback(() => setIsResizing(true), []);
   const stopResizing = useCallback(() => setIsResizing(false), []);
@@ -365,22 +378,36 @@ export default function EditableMindMap({
       </div>
 
       {/* Canvas */}
-      <div className="flex-1 relative">
+      <div  className="flex-1 relative" ref={flowWrapperRef}>
         <ReactFlow
+  
           nodes={nodes}
           edges={edges}
+          nodeTypes={nodeTypes}
 onNodesChange={onNodesChange}
 onEdgesChange={onEdgesChange}
 onConnect={onConnect}
 onNodeClick={(e, node) => setSelectedNode(node)}
 fitView
-nodeTypes={nodeTypes}
+
 >
 <Background />
 <MiniMap nodeColor={() => "#6b21a8"} />
 <Controls />
 </ReactFlow>
 </div>
+ {/* Download button */}
+     
+        {flowWrapperRef.current && (
+  <DownloadMindMap
+    mapId={mapId as string}
+    nodes={nodes}
+    edges={edges}
+    containerRef={flowWrapperRef}
+  />
+)}
+
+      
 </div>
 );
 }
