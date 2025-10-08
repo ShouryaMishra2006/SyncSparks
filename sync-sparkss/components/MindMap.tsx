@@ -1,125 +1,148 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import ReactFlow, {
   addEdge,
   Background,
   Controls,
   MiniMap,
-  Node,
-  Edge,
   Connection,
-  ReactFlowInstance,
-  useNodesState,
+  Edge,
+  Node,
   useEdgesState,
+  useNodesState,
 } from "reactflow";
 import "reactflow/dist/style.css";
+import { useRouter } from "next/navigation";
 
+import { layoutElements } from "../lib/dagreLayout";
 import NodeWithNotes from "./NodeWithNotes";
-import Sidebar from "./Sidebar";
-import applyLayout from "../lib/dagreLayout";
-import { MindMapNodeData } from "../types/mindmap";
+import { Button } from "@/components/ui/button";
+const { Download , Pencil} = require ("lucide-react");
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import EditableMindMap from "./EditableMindMap";
+
 
 const nodeTypes = { customNode: NodeWithNotes };
 
-export default function MindMap() {
-  const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
+type MindMapViewProps = {
+  mapId: string;
+  initialData: {
+    nodes: Node[];
+    edges: Edge[];
+  };
+};
 
-  // SAMPLE DATA
-  const sampleNodes: Node[] = [
-    { id: "1", type: "customNode", data: { label: "Root Node", notes: "Double-click to edit" }, position: { x: 0, y: 0 } },
-    { id: "2", type: "customNode", data: { label: "Child Node 1", notes: "Edit me" }, position: { x: 100, y: 100 } },
-    { id: "3", type: "customNode", data: { label: "Child Node 2", notes: "Edit me" }, position: { x: 300, y: 100 } },
-  ];
+export default function MindMapView({ mapId, initialData }: MindMapViewProps) {
+  const router = useRouter();
 
-  const sampleEdges: Edge[] = [
-    { id: "e1-2", source: "1", target: "2", animated: true },
-    { id: "e1-3", source: "1", target: "3", animated: true },
-  ];
+  
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node<MindMapNodeData>>(sampleNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(sampleEdges);
+  const nodesInitial = React.useMemo(() => 
+  (initialData?.nodes || []).map((node) => ({
+    ...node,
+    data: {
+      label: node.data?.label || "Node",
+      notes: node.data?.notes || "",
+      width: node.data?.width || 140,
+      height: node.data?.height || 80,
+      shape: node.data?.shape || "rounded",
+      color: node.data?.color || "blue",
+      ...node.data,
+    },
+  })),
+  [initialData?.nodes]
+);
 
-  // Layout nodes on mount
+const edgesInitial = React.useMemo(() => initialData?.edges || [], [initialData?.edges]);
+
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(nodesInitial);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(edgesInitial);
+  
   useEffect(() => {
-    const { nodes: layoutedNodes, edges: layoutedEdges } = applyLayout(sampleNodes, sampleEdges);
+    if (!initialData?.nodes?.length) return;
+
+    const { nodes: layoutedNodes, edges: layoutedEdges } = layoutElements(
+      initialData.nodes,
+      initialData.edges
+    );
     setNodes(layoutedNodes);
     setEdges(layoutedEdges);
-  }, []);
+  }, [nodesInitial, edgesInitial, setNodes, setEdges]);
 
-  // Handle interactive edge creation
+  const handleOpenEditor = () => {
+    const params = new URLSearchParams({
+      nodes: JSON.stringify(initialData.nodes),
+      edges: JSON.stringify(initialData.edges),
+    });
+
+    router.push(`/editor/${mapId}?${params.toString()}`);
+  };
   const onConnect = useCallback(
-    (params: Edge | Connection) => setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
-    []
+    (params: Edge | Connection) =>
+      setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
+    [setEdges]
   );
 
-  // Drag-and-drop nodes from Sidebar
-  const onDrop = useCallback(
-    (event: React.DragEvent) => {
-      event.preventDefault();
-      const type = event.dataTransfer.getData("application/reactflow");
-      if (!type || !reactFlowInstance) return;
+  // 📸 Export as image (JPG)
+  const handleExportImage = async () => {
+    const flow = document.querySelector(".react-flow__viewport") as HTMLElement;
+    if (!flow) return;
+    console.log(flow)
+    const canvas = await html2canvas(flow);
+    const imgData = canvas.toDataURL("image/jpeg", 1.0);
+    const link = document.createElement("a");
+    link.download = `mindmap-${mapId}.jpg`;
+    link.href = imgData;
+    link.click();
+  };
 
-      const bounds = reactFlowWrapper.current?.getBoundingClientRect();
-      if (!bounds) return;
+  // 📄 Export as PDF
+  const handleExportPDF = async () => {
+    const flow = document.querySelector(".react-flow__viewport") as HTMLElement;
+    if (!flow) return;
+    const canvas = await html2canvas(flow);
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: "a4" });
+    const imgProps = pdf.getImageProperties(imgData);
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+    pdf.save(`mindmap-${mapId}.pdf`);
+  };
 
-      const position = reactFlowInstance.project({
-        x: event.clientX - bounds.left,
-        y: event.clientY - bounds.top,
-      });
-
-      const id = `${+new Date()}`;
-      const newNode: Node = {
-        id,
-        type,
-        position,
-        data: {
-          label: "New Node",
-          notes: "Edit me",
-          onChange: (newData: any) =>
-            setNodes((nds) =>
-              nds.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...newData } } : n))
-            ),
-        },
-      };
-
-      setNodes((nds) => nds.concat(newNode));
-    },
-    [reactFlowInstance, setNodes]
-  );
-
-  const onDragOver = useCallback((event: React.DragEvent) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-  }, []);
+  
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
-      <Sidebar />
-
-      {/* Flow Canvas */}
-      <div className="flex-1 p-4" ref={reactFlowWrapper}>
-        <div className="w-full h-[90vh] bg-white rounded-xl shadow-lg border border-gray-200">
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            nodeTypes={nodeTypes}
-            fitView
-            onInit={setReactFlowInstance}
-            onDrop={onDrop}
-            onDragOver={onDragOver}
-          >
-            <MiniMap nodeColor="#4f46e5" nodeStrokeWidth={2} />
-            <Controls />
-            <Background gap={20} color="#f0f0f0" />
-          </ReactFlow>
-        </div>
+    <div className="relative h-[70vh] w-full bg-gradient-to-br from-purple-950 via-black to-indigo-950 rounded-xl border border-purple-700 overflow-hidden">
+      <div className="absolute top-3 right-3 flex gap-2 z-10">
+        <Button variant="secondary" onClick={handleExportImage}>
+          <Download className="w-4 h-4 mr-1" /> JPG
+        </Button>
+        <Button variant="secondary" onClick={handleExportPDF}>
+          <Download className="w-4 h-4 mr-1" /> PDF
+        </Button>
+        <Button variant="default" onClick={handleOpenEditor}>
+          <Pencil className="w-4 h-4 mr-1" /> Open Editor
+        </Button>
       </div>
+
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onConnect={onConnect}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        fitView
+        nodeTypes={nodeTypes}
+        className="rounded-xl"
+      >
+        <Background color="#999" gap={16} />
+        <MiniMap nodeColor={() => "#6b21a8"} />
+        <Controls />
+      </ReactFlow>
     </div>
   );
 }

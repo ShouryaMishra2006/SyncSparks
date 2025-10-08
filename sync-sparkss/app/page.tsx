@@ -66,7 +66,7 @@ export default function LandingPage() {
 
       {/* Hero */}
       <section className="z-10 flex flex-col items-center justify-center text-center px-6 py-20">
-        <h1 className="text-4xl md:text-6xl font-extrabold leading-tight max-w-3xl">
+        <h1 className="text-3xl md:text-5xl font-extrabold leading-tight max-w-3xl">
           The digital backstage where raw sparks become unforgettable performances
         </h1>
         <Button
@@ -98,7 +98,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="z-10 border-t border-white/20 py-6 px-6 flex justify-between text-sm">
-        <span>© 2025 Backstage. All rights reserved.</span>
+        <span>© 2025 SyncSparks. All rights reserved.</span>
         <div className="flex space-x-4">
           <Link href="/docs">Docs</Link>
           <Link href="https://github.com/">GitHub</Link>
