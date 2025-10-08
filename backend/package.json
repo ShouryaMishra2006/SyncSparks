@@ -20,6 +20,7 @@
     "@langchain/google-vertexai": "^0.2.18",
     "@types/express-session": "^1.18.2",
     "@types/passport": "^1.0.17",
+    "@types/ws": "^8.18.1",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -32,7 +33,10 @@
     "nodemailer": "^7.0.6",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
-    "uuid": "13.0.0"
+    "uuid": "13.0.0",
+    "ws": "^8.18.3",
+    "y-websocket": "^3.0.0",
+    "yjs": "^13.6.27"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
