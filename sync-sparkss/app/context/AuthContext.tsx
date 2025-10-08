@@ -8,6 +8,10 @@ interface User {
   nickname?: string; 
   email: string;
   isVerified: boolean;
+  writer?: {
+    writerId: string
+    ideaInbox?: any[] 
+  }
 }
 
 type AuthContextType = {

@@ -13,6 +13,34 @@ const performerExtensionSchema = new mongoose.Schema({
     },
   ],
 })
+const writerExtensionSchema = new mongoose.Schema({
+  writerId: {
+    type: String,
+    unique: true,
+    sparse: true, //allows some users not to have it
+  },
+  ideaInbox: [
+    {
+      performerName: {
+        type: String,
+        required: true,
+      },
+      performerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      idea: {
+        type: String,
+        required: true,
+      },
+      submittedAt: {
+        type: Date,
+        default: Date.now,
+      },
+    },
+  ],
+});
+
 const userSchema = new mongoose.Schema({
   name: String,
   nickname: String,
@@ -20,12 +48,13 @@ const userSchema = new mongoose.Schema({
   passwordHash: String,
   googleId: String,
   isVerified: { type: Boolean, default: false },
-  role: { type: String, enum: ["performer", "writer", "director", "developer"] },
+  role: { type: String, enum: ["performer", "writer", "developer"] },
   otp: {
     code: String,
     expiresAt: Date,
   },
   performer: performerExtensionSchema,
+  writer: writerExtensionSchema
 })
-
+userSchema.index({ "writer.writerId": 1 }, { unique: true, sparse: true });
 export default mongoose.model("User", userSchema)

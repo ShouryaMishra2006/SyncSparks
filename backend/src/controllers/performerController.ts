@@ -245,3 +245,36 @@ export const searchIdeas = async (
     res.status(500).json({ message: "Error searching ideas" });
   }
 };
+// type Writer = {
+//   _id: string;
+//   name: string;
+//   nickname?: string;
+//   writer?: {
+//     writerId: string;
+//     ideaInbox: any[];
+//     _id: string;
+//   };
+// };
+
+export const searchWriter = async (req: Request, res: Response) => {
+  try {
+    console.log("Searching writer");
+    const { writerid } = req.query;
+
+    if (!writerid) {
+      return res.status(400).json({ message: "Writer ID is required" });
+    }
+    const writerDoc = await User.findOne({ "writer.writerId": writerid })
+      .select("_id name nickname writer")  
+
+    if (!writerDoc) {
+      return res.status(404).json({ message: "Writer not found" });
+    }
+    console.log(" Writer found:", writerDoc);
+
+    res.status(200).json({ writer: writerDoc });
+  } catch (error) {
+    console.error("Error searching writer:", error);
+    res.status(500).json({ message: "Error searching writer" });
+  }
+};

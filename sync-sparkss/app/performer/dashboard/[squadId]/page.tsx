@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { useAuth } from "@/app/context/AuthContext";
 import { Mic, Search } from "lucide-react";
+import { arrayBuffer } from "stream/consumers";
 
 type Idea = {
   _id: string;
@@ -28,7 +29,12 @@ interface AiResult {
 type Writer = {
   _id: string;
   name: string;
-  nickname: string;
+  nickname?: string;
+  writer?: {
+    writerId: string;
+    ideaInbox: any[];
+    _id: string;
+  };
 };
 
 type Squad = {
@@ -53,6 +59,7 @@ export default function SquadDashboard() {
   const [listening, setListening] = useState(false);
   const [aiResult, setAiResult] = useState<AiResult | null>(null);
   const [query, setQuery] = useState("");
+  const [writerid,setwriterid]=useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [ideas, setIdeas] = useState<Idea[]>([]);
@@ -106,7 +113,7 @@ export default function SquadDashboard() {
   useEffect(() => {
     const fetchWriters = async () => {
       try {
-        const res = await fetch("http://localhost:4000/api/writers", {
+        const res = await fetch("http://localhost:4000/api/writer/fetch", {
           credentials: "include",
         });
         const data = await res.json();
@@ -116,6 +123,7 @@ export default function SquadDashboard() {
       }
     };
     fetchWriters();
+    console.log("fetching...");
   }, []);
 
   if (loading) return <div className="text-white p-10">Loading...</div>;
@@ -219,9 +227,76 @@ export default function SquadDashboard() {
   const handleExpand = async () => {
     // Placeholder
   };
+  const handleSearchwriter = async () => {
+  try {
+    if (!writerid) {
+      alert("Please enter a Writer ID to search.");
+      return;
+    }
+
+      const params = new URLSearchParams();
+      if (writerid) params.append("writerid", writerid);
+
+      const res = await fetch(
+        `http://localhost:4000/api/performer/squads/search-writer?${params.toString()}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+        }
+      );
+
+    const data = await res.json();
+    console.log(data)
+    if (!res.ok) {
+      console.error("Error fetching writer:", data.message);
+      alert(data.message || "Writer not found");
+      return;
+    }
+    const w=data.writer
+    const warr=[]
+    warr.push(w)
+    setWriters(warr);
+    
+  } catch (error) {
+    console.error("Search error:", error);
+    alert("Something went wrong while searching for the writer.");
+  }
+};
 
   const handleShare = (writerId: string) => {
-    alert(`Shared idea with writer ${writerId} (placeholder)`);
+    if (!aiResult) {
+      alert("No AI result to share!");
+      return;
+    }
+
+    const payload = {
+      writerId:writerId,
+      aiResult: {
+        title: aiResult.title,
+        text: aiResult.text,
+        bullets: aiResult.bullets,
+      },
+    };
+
+    fetch("http://localhost:4000/api/writer/ai/share", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(payload),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          alert(`AI result shared successfully`);
+        } else {
+          alert(`Failed to share AI result: ${data.message || "Error"}`);
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        alert("Error sharing AI result.");
+      });
   };
 
   return (
@@ -405,7 +480,6 @@ export default function SquadDashboard() {
             )}
           </div>
         </motion.div>
-
         {/* Section 3: Writers */}
         <motion.div
           className="bg-black/50 rounded-xl p-4 border border-purple-600/40 flex flex-col"
@@ -413,6 +487,20 @@ export default function SquadDashboard() {
           animate={{ opacity: 1 }}
         >
           <h3 className="text-xl font-semibold mb-3">✍️ Writers</h3>
+           <div className="flex flex-wrap gap-2 mb-4">
+            <Input
+              placeholder="Search writer (Enter writer's id)"
+              value={writerid}
+              onChange={(e) => setwriterid(e.target.value)}
+              className="flex-1"
+            />
+            <Button
+              onClick={handleSearchwriter}
+              className="bg-purple-600 hover:bg-purple-700 flex items-center"
+            >
+              <Search className="w-4 h-4 mr-1" /> Search
+            </Button>
+          </div>
           <div className="space-y-3">
             {writers.map((writer) => (
               <Card
@@ -423,10 +511,12 @@ export default function SquadDashboard() {
                   <CardTitle className="text-lg">{writer.name}</CardTitle>
                 </CardHeader>
                 <CardContent className="flex justify-between items-center">
-                  <p className="text-sm text-gray-400">{writer.nickname}</p>
+                  <p className="text-sm text-yellow-400 font-mono">
+                    ID: {writer.writer?.writerId}
+                  </p>
                   <Button
                     className="bg-purple-600 hover:bg-purple-700"
-                    onClick={() => handleShare(writer._id)}
+                    onClick={() => handleShare(writer.writer?.writerId!)}
                   >
                     Share
                   </Button>

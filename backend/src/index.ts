@@ -9,6 +9,7 @@ import connectDB from "./config/db";
 import cookieParser from "cookie-parser";
 import authRoutes from "./routes/authRoutes";
 import performerRoutes from "./routes/performerRoutes";
+import writerRoutes from "./routes/writerRoutes"
 import "./config/passport";
 
 connectDB();
@@ -27,7 +28,7 @@ app.get("/", (req, res) => {
 app.use(passport.initialize());
 app.use("/api/auth", authRoutes);
 app.use("/api/performer", performerRoutes);
-
+app.use("/api/writer",writerRoutes)
 app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
 });

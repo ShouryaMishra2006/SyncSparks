@@ -1,0 +1,117 @@
+import { Request, Response } from "express";
+import User from "../models/User";
+import crypto from "crypto";
+interface AuthUser {
+  _id: string;
+  name: string;
+  email: string;
+  isVerified: boolean;
+}
+export const assignWriterId = async (req: Request, res: Response) => {
+  try {
+    const user = req.user as AuthUser;
+    const userId = user?._id;
+    console.log(user)
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+
+    const writerId = `WRT-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        $set: {
+          role: "writer",
+          writer: {
+            writerId,
+            ideaInbox: [],
+          },
+        },
+      },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.status(200).json({
+      message: "Writer ID assigned successfully!",
+      writerId: updatedUser.writer?.writerId,
+    });
+  } catch (error) {
+    console.error("Error assigning writer ID:", error);
+    res.status(500).json({ error: "Failed to assign writer ID" });
+  }
+};
+export const fetchWriters = async (req: Request, res: Response) => {
+  try {
+    console.log("on mission to fetch writers hehe")
+    const writers = await User.find({
+      "writer.writerId": { $exists: true, $ne: null },
+    }).select("_id name nickname writer");
+    console.log("writers:",writers)
+    res.status(200).json(writers);
+  } catch (error) {
+    console.error("Error fetching writers:", error);
+    res.status(500).json({ message: "Failed to fetch writers" });
+  }
+};
+// const payload = {
+//       writerId:writerId,
+//       aiResult: {
+//         title: aiResult.title,
+//         text: aiResult.text,
+//         bullets: aiResult.bullets,
+//       },
+//     };
+export const addIdeaInbox = async (req: Request, res: Response) => {
+  try {
+    const { writerId, aiResult } = req.body;
+
+    if (!writerId || !aiResult?.text) {
+      return res.status(400).json({
+        success: false,
+        message: "Writer ID and AI result are required.",
+      });
+    }
+    const writerUser = await User.findOne({ "writer.writerId": writerId });
+    if (!writerUser) {
+      return res.status(404).json({
+        success: false,
+        message: "Writer not found.",
+      });
+    }
+    const performer = (req as any).user;
+    if (!performer) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized — performer not found.",
+      });
+    }
+    const newIdea = {
+      performerName: performer.name,
+      performerId: performer._id,
+      idea: aiResult.text,
+      submittedAt: new Date(),
+    };
+    writerUser.writer?.ideaInbox.push(newIdea);
+
+    await writerUser.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "AI result shared successfully.",
+      writer: {
+        name: writerUser.name,
+        writerId: writerUser.writer?.writerId,
+      },
+    });
+  } catch (e) {
+    console.error("Error in addIdeaInbox:", e);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while sharing idea.",
+    });
+  }
+};
