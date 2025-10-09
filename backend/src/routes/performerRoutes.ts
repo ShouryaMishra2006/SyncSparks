@@ -1,6 +1,6 @@
 import express from "express";
 import { requireAuth } from "../middleware/authMiddleware";
-import { joinSquad,createSquad, getSquads, getSquadDetails, addIdea } from "../controllers/performerController";
+import { joinSquad,createSquad, getSquads, getSquadDetails, addIdea,searchIdeas ,searchWriter} from "../controllers/performerController";
 import { summarizeIdeas } from "../controllers/aiController";
 import { generateMindMapBySquad } from "../controllers/mindmapController";
 
@@ -13,4 +13,6 @@ router.post("/join",requireAuth,joinSquad)
 router.post("/squads/:squadId/idea",requireAuth,addIdea)
 router.post("/squads/:id/summarize", requireAuth, summarizeIdeas);
 router.post("/squads/:id/mindmap",requireAuth ,generateMindMapBySquad);
+router.post("/squads/search-ideas",requireAuth,searchIdeas)
+router.post("/squads/search-writer",requireAuth,searchWriter)
 export default router;

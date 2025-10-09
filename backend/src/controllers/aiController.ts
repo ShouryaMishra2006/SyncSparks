@@ -13,21 +13,39 @@ export const summarizeIdeas = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Ideas are required" });
     }
 
-    const promptText = `
-You are a creative summarizer. Given the following ideas (text + author), produce:
-1) A concise 3-4 sentence summary capturing the core themes.
-2) 5 short bullet action-items or highlights extracted from ideas.
-3) 1 suggested title for the summarized idea.
+    const squad = await PerformerSquad.findById(id);
+    if (!squad) {
+      return res.status(404).json({ message: "Squad not found" });
+    }
 
-Return JSON with keys:
-- "title"
-- "summary"
-- "bullets" (array of strings)
+    console.log("Received ideas:", ideas);
+    const formattedIdeas = ideas
+      .map((it: any, idx: number) => {
+        const author = it?.author || "Anonymous";
+        const text = it?.text || it || "";
+        return `${idx + 1}. (${author}) ${text}`;
+      })
+      .join("\n\n");
+    const promptText = `
+You are a creative summarizer AI.
+
+Given the following list of ideas, each optionally tagged with an author,
+write a short summary capturing the overall message.
+
+Then provide:
+1. A concise 3-4 sentence summary capturing the main insights.
+2. 5 actionable or highlight bullet points.
+3. A short, catchy title for the set of ideas.
+
+Return valid JSON with the following keys:
+{
+  "title": string,
+  "summary": string,
+  "bullets": string[]
+}
 
 Ideas:
-${ideas
-  .map((it: any, idx: number) => `${idx + 1}. (${it.author || "Anon"}) ${it.text}`)
-  .join("\n\n")}
+${formattedIdeas}
 `;
 
     const llm = new ChatGoogleGenerativeAI({
@@ -43,14 +61,19 @@ ${ideas
 
     const finalPrompt = await prompt.format({ input: promptText });
     const response = await llm.invoke(finalPrompt);
-
     let rawText = "";
-    if (typeof response.content === "string") rawText = response.content;
-    else if (Array.isArray(response.content))
-      rawText = response.content.map((p: any) => (typeof p === "string" ? p : p?.text || "")).join(" ");
-    else rawText = String(response.content ?? "");
+    if (typeof response.content === "string") {
+      rawText = response.content;
+    } else if (Array.isArray(response.content)) {
+      rawText = response.content
+        .map((part: any) => (typeof part === "string" ? part : part?.text || ""))
+        .join(" ")
+        .trim();
+    } else {
+      rawText = String(response.content ?? "");
+    }
 
-    // try parse json portion
+    console.log(" Gemini rawText:", rawText);
     let parsed: any = null;
     try {
       const jsonStart = rawText.indexOf("{");
@@ -80,17 +103,19 @@ ${ideas
           createdAt: new Date(),
           createdBy: performer?._id,
         };
+    squad.aiSummary = {
+      text: summaryObj.text,
+      createdAt: summaryObj.createdAt,
+    };
+    squad.aiExpansion ??= { text: "", createdAt: undefined };
+    squad.aiMindMap ??= { data: null, createdAt: undefined };
 
-    // Optional: attach to squad if id provided
-    if (id) {
-      const squad = await PerformerSquad.findById(id);
-      if (squad) {
-        squad.aiSummary = { text: summaryObj.text, createdAt: summaryObj.createdAt };
-        await squad.save();
-      }
-    }
-
-    return res.status(200).json({ message: "Summarized successfully", summary: summaryObj });
+    await squad.save();
+    console.log(summaryObj)
+    return res.status(200).json({
+      message: "Summarized successfully",
+      summary: summaryObj,
+    });
   } catch (err) {
     console.error("Error in summarizing ideas:", err);
     return res.status(500).json({ message: "Server error" });

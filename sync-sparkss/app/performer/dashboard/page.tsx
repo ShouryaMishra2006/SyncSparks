@@ -15,6 +15,9 @@ type Squad = {
   name: string;
   description?: string;
   performers: string[];
+  invitationCode?: {
+    text: string;
+  };
 };
 
 export default function PerformerDashboard() {
@@ -25,6 +28,10 @@ export default function PerformerDashboard() {
   const [mySquads, setMySquads] = useState<Squad[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newSquad, setNewSquad] = useState({ name: "", description: "" });
+  const [invitationCodes, setInvitationCodes] = useState<
+    Record<string, string>
+  >({});
+  const [joinByCode, setJoinByCode] = useState("");
 
   useEffect(() => {
     const fetchSquads = async () => {
@@ -69,8 +76,8 @@ export default function PerformerDashboard() {
       </div>
     );
   }
-
-  const handleCreateSquad = async () => {
+  //returns: a list of squads user can join (update in api: only public squads)
+  const handleCreateSquad = async (isPublic: boolean) => {
     try {
       const res = await fetch(
         "http://localhost:4000/api/performer/createsquad",
@@ -78,13 +85,18 @@ export default function PerformerDashboard() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify(newSquad),
+          body: JSON.stringify({ ...newSquad, public: isPublic }),
         }
       );
       const data = await res.json();
       if (res.ok) {
         alert("Squad created successfully!");
-        setAvailableSquads((prev) => [...prev, data]);
+        // Add to mySquads since the creator automatically joins
+        setMySquads((prev) => [...prev, data]);
+        // If it's a public squad (no invitation code), also add to available squads
+        if (isPublic && !data.invitationCode) {
+          setAvailableSquads((prev) => [...prev, data]);
+        }
         setShowCreateForm(false);
         setNewSquad({ name: "", description: "" });
       } else {
@@ -96,13 +108,18 @@ export default function PerformerDashboard() {
     }
   };
 
-  const handleJoinSquad = async (squadId: string) => {
+  const handleJoinSquad = async (squadId: string, invitationCode?: string) => {
     try {
+      const body: { squadId: string; invitationCode?: string } = { squadId };
+      if (invitationCode) {
+        body.invitationCode = invitationCode;
+      }
+
       const res = await fetch(`http://localhost:4000/api/performer/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ squadId }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
 
@@ -113,8 +130,62 @@ export default function PerformerDashboard() {
 
         setMySquads((prev) => [...prev, joinedSquad]);
         setAvailableSquads((prev) => prev.filter((s) => s._id !== squadId));
+        // Clear the invitation code input for this squad
+        setInvitationCodes((prev) => {
+          const newCodes = { ...prev };
+          delete newCodes[squadId];
+          return newCodes;
+        });
       } else {
         alert(data.message || "Failed to join");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Server error");
+    }
+  };
+
+  const handleJoinByCode = async () => {
+    if (!joinByCode.trim()) {
+      alert("Please enter an invitation code");
+      return;
+    }
+
+    try {
+      const joinRes = await fetch(`http://localhost:4000/api/performer/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ invitationCode: joinByCode.trim() }),
+      });
+
+      const joinData = await joinRes.json();
+
+      if (joinRes.ok) {
+        alert(joinData.message);
+        // Refetch squads to get updated list
+        const refreshRes = await fetch(
+          "http://localhost:4000/api/performer/squads",
+          {
+            credentials: "include",
+          }
+        );
+        const refreshedSquads: Squad[] = await refreshRes.json();
+
+        if (refreshRes.ok && user?._id) {
+          const my = refreshedSquads.filter((s) =>
+            s.performers.some((p: any) => p._id === user._id)
+          );
+          const available = refreshedSquads.filter(
+            (s) => !s.performers.some((p: any) => p._id === user._id)
+          );
+          setMySquads(my);
+          setAvailableSquads(available);
+        }
+
+        setJoinByCode("");
+      } else {
+        alert(joinData.message || "Failed to join squad");
       }
     } catch (err) {
       console.error(err);
@@ -195,10 +266,16 @@ export default function PerformerDashboard() {
               />
               <div className="flex gap-3">
                 <Button
-                  className="bg-purple-600 hover:bg-purple-700"
-                  onClick={handleCreateSquad}
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={() => handleCreateSquad(true)}
                 >
-                  Create
+                  Create Public
+                </Button>
+                <Button
+                  className="bg-purple-600 hover:bg-purple-700"
+                  onClick={() => handleCreateSquad(false)}
+                >
+                  Create Private
                 </Button>
                 <Button
                   variant="outline"
@@ -211,40 +288,68 @@ export default function PerformerDashboard() {
           )}
         </div>
 
+        {/* Join Squad by Invitation Code */}
+        <div className="flex justify-center mb-10">
+          <div className="w-full max-w-md bg-black/70 p-6 rounded-xl shadow-lg border border-green-600/40">
+            <h2 className="text-xl font-semibold mb-4">Join Private Squad</h2>
+            <Input
+              placeholder="Enter Invitation Code"
+              className="mb-3"
+              value={joinByCode}
+              onChange={(e) => setJoinByCode(e.target.value)}
+            />
+            <Button
+              className="w-full bg-green-600 hover:bg-green-700"
+              onClick={handleJoinByCode}
+            >
+              Join Squad
+            </Button>
+          </div>
+        </div>
+
         {/* Available Squads */}
         <section className="mb-16">
           <h2 className="text-2xl font-bold mb-6">Available Squads</h2>
-          {availableSquads.length === 0 ? (
+          {availableSquads.filter((squad) => !squad.invitationCode).length ===
+          0 ? (
             <p className="text-gray-400">No squads available to join.</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {availableSquads.map((squad) => (
-                <motion.div
-                  key={squad._id}
-                  whileHover={{ scale: 1.05 }}
-                  className="rounded-2xl shadow-lg overflow-hidden border border-purple-600/40 bg-black/50"
-                >
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-xl">{squad.name}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-gray-400 mb-4">
-                        {squad.description || "No description provided"}
-                      </p>
-                      <p className="text-xs text-gray-500 mb-2">
-                        Members: {squad.performers.length}
-                      </p>
-                      <Button
-                        className="w-full bg-purple-600 hover:bg-purple-700"
-                        onClick={() => handleJoinSquad(squad._id)}
-                      >
-                        Join Squad
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
+              {availableSquads
+                .filter((squad) => !squad.invitationCode)
+                .map((squad) => (
+                  <motion.div
+                    key={squad._id}
+                    whileHover={{ scale: 1.05 }}
+                    className="rounded-2xl shadow-lg overflow-hidden border border-purple-600/40 bg-black/50"
+                  >
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-xl">{squad.name}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-gray-400 mb-4">
+                          {squad.description || "No description provided"}
+                        </p>
+                        <p className="text-xs text-gray-500 mb-2">
+                          Members: {squad.performers.length}
+                        </p>
+
+                        <Button
+                          className="w-full bg-purple-600 hover:bg-purple-700"
+                          onClick={() =>
+                            handleJoinSquad(
+                              squad._id,
+                              invitationCodes[squad._id]
+                            )
+                          }
+                        >
+                          Join Squad
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
             </div>
           )}
         </section>
@@ -273,6 +378,18 @@ export default function PerformerDashboard() {
                       <p className="text-xs text-gray-500 mb-2">
                         Members: {squad.performers.length}
                       </p>
+
+                      {squad.invitationCode && (
+                        <div className="mb-3 p-2 bg-purple-900/30 rounded border border-purple-600/30">
+                          <p className="text-xs text-gray-400 mb-1">
+                            🔒 Private Squad - Invitation Code:
+                          </p>
+                          <p className="text-sm font-mono text-purple-300 font-bold">
+                            {squad.invitationCode.text}
+                          </p>
+                        </div>
+                      )}
+
                       <Button
                         className="w-full bg-purple-600 hover:bg-purple-700"
                         onClick={() =>

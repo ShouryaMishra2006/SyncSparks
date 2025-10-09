@@ -30,10 +30,16 @@ export default function LoginPage() {
 
       const data = await res.json()
       if (res.ok) {
-        window.location.href = data.redirectUrl || `/dashboard/${role}`
-      } else {
-        alert(data.message || "Login failed")
-      }
+       if(role==="writer-director"){
+          window.location.href="/writer-confirm";
+       }
+       else{
+          window.location.href = data.redirectUrl || `/dashboard/${role}`;
+       }
+      
+    } else {
+      alert(data.message || "Login failed");
+    }
     } catch (err) {
       console.error(err)
       alert("Server error")

@@ -1,37 +1,45 @@
-import { Request, Response, NextFunction } from "express"
-import jwt from "jsonwebtoken"
-import User from "../models/User"
+import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
+import User from "../models/User";
 
 export interface AuthRequest extends Request {
-  user?: any
+  user?: any;
 }
 
-export const requireAuth = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const requireAuth = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const token = req.cookies.token
-    console.log(token)
+    const token = req.cookies.token;
+    console.log(token);
     if (!token) {
-      return res.status(401).json({ message: "Not authenticated" })
+      return res.status(401).json({ message: "Not authenticated" });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: string }
-    console.log(decoded)
-    const user = await User.findById(decoded.id)
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
+      id: string;
+    };
+    console.log(decoded);
+    const user = await User.findById(decoded.id);
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" })
+      return res.status(404).json({ message: "User not found" });
     }
-    console.log("user decoded from token:",user)
+    console.log("user decoded from token:", user);
     req.user = {
       _id: user._id,
       name: user.name,
-      email:user.email,
+      email: user.email,
       isVerified: user.isVerified,
+      role: user.role,
+      writer: user.writer,
     };
 
-    next()
+    next();
   } catch (err) {
-    console.error("Auth error:", err)
-    res.status(401).json({ message: "Invalid or expired token" })
+    console.error("Auth error:", err);
+    res.status(401).json({ message: "Invalid or expired token" });
   }
-}
+};
