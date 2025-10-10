@@ -72,7 +72,7 @@ export function extractKeywords(ideas: IdeaLike[], maxKeywords = 30): string[] {
     console.log(stemmed)
 
     // record mapping stem -> original token frequencies
-    normalized.forEach((orig, i) => {
+    normalized.forEach((orig:any, i:any) => {
       const s = stemmed[i];
       if (!stemToOriginalFreq[s]) stemToOriginalFreq[s] = {};
       stemToOriginalFreq[s][orig] = (stemToOriginalFreq[s][orig] || 0) + 1;

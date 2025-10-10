@@ -53,6 +53,19 @@ interface ClientInfo {
 
 const sessions = new Map<string, Set<ClientInfo>>();
 
+// Export function to get connected users for a session
+export function getConnectedUsers(sessionId: string) {
+  const sessionClients = sessions.get(sessionId);
+  if (!sessionClients) {
+    return [];
+  }
+
+  return Array.from(sessionClients).map((client) => ({
+    userId: client.userId,
+    userName: client.userName,
+  }));
+}
+
 wss.on("connection", (ws, req) => {
   const url = new URL(req.url || "", `http://${req.headers.host}`);
   const sessionId = url.searchParams.get("sessionId");
