@@ -142,8 +142,10 @@ export const getSessionDetails = async (req: Request, res: Response) => {
     console.error(err);
     return res.status(500).json({ message: "Server error" });
   }
-};
-
+}; 
+//TODO: 
+//in this first save to an in memory db (like memcached)
+//and then after exiting, or maybe every 1 minute, store it in the db
 export const saveCanvasData = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;

@@ -77,6 +77,14 @@ export const login = async (req: Request, res: Response) => {
     return res.status(400).json({ message: "Invalid credentials" });
   }
 
+  // Clear any existing auth cookie before setting new one
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+  });
+
   const token = jwt.sign(
     { userId: user._id, role: user.role },
     process.env.JWT_SECRET as string,
@@ -86,7 +94,8 @@ export const login = async (req: Request, res: Response) => {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 1000 * 60 * 60, 
+    path: "/",
+    maxAge: 1000 * 60 * 60,
   });
 
   res.json({ message: "Login successful", redirectUrl: `/dashboard/${role}` });
@@ -96,6 +105,14 @@ export const googleCallback = async (req: any, res: Response) => {
   try {
     const state = req.query.state ? JSON.parse(req.query.state as string) : {};
     const role = state.role || req.user.user.role || "performer";
+
+    // Clear any existing auth cookie before setting new one
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+    });
 
     const token = jwt.sign(
       { id: req.user.user._id, email: req.user.user.email, role },
@@ -107,12 +124,35 @@ export const googleCallback = async (req: any, res: Response) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
+      path: "/",
       maxAge: 1000 * 60 * 60 * 24,
     });
 
-    res.redirect(`http://localhost:3000/dashboard/${role}`);
+    // Redirect based on role
+    if (role === "writer-director") {
+      res.redirect("http://localhost:3000/writer-confirm");
+    } else {
+      res.redirect(`http://localhost:3000/dashboard/${role}`);
+    }
   } catch (err) {
     console.error("Google callback error:", err);
     res.redirect("http://localhost:3000/login?error=OAuthFailed");
+  }
+};
+
+export const logout = async (req: Request, res: Response) => {
+  try {
+    // Clear the authentication cookie
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+    });
+
+    res.json({ message: "Logged out successfully" });
+  } catch (err) {
+    console.error("Logout error:", err);
+    res.status(500).json({ message: "Server error during logout" });
   }
 };

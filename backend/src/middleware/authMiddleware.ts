@@ -19,10 +19,18 @@ export const requireAuth = async (
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
-      id: string;
+      id?: string;
+      userId?: string;
     };
     console.log(decoded);
-    const user = await User.findById(decoded.id);
+
+    // Handle both 'id' and 'userId' for backward compatibility
+    const userId = decoded.id || decoded.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Invalid token format" });
+    }
+
+    const user = await User.findById(userId);
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
