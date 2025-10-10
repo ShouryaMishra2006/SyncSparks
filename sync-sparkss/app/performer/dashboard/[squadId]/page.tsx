@@ -229,7 +229,7 @@ export default function SquadDashboard() {
       const data = await res.json();
       if (res.ok) {
         console.log(`summary: ${data.summary}`)
-        setAiResult(data.summary.text);
+        setAiResult(data.summary);
         setShowMindMap(false);
 
       } else {
@@ -560,12 +560,12 @@ export default function SquadDashboard() {
             >
               Mind Map
             </Button>
-            <Button
+            {/* <Button
               onClick={handleExpand}
               className="bg-purple-600 hover:bg-purple-700"
             >
               Expand
-            </Button>
+            </Button> */}
           </div>
           <div className="flex-1 p-3 rounded-lg bg-purple-900/20 overflow-y-auto whitespace-pre-wrap text-white">
             {aiResult ? (

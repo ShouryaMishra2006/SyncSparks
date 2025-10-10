@@ -2,17 +2,27 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react"
 
+interface IdeaInboxItem {
+  performerName: string;
+  performerId: string;
+  idea: string;
+  submittedAt: string; 
+}
+
+interface WriterInfo {
+  writerId: string;
+  ideaInbox?: IdeaInboxItem[];
+}
+
 interface User {
   _id: string;      
   name: string;
   nickname?: string; 
   email: string;
   isVerified: boolean;
-  writer?: {
-    writerId: string
-    ideaInbox?: any[] 
-  }
+  writer?: WriterInfo;
 }
+
 
 type AuthContextType = {
   user: User | null

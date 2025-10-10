@@ -11,11 +11,13 @@ export const assignWriterId = async (req: Request, res: Response) => {
   try {
     const user = req.user as AuthUser;
     const userId = user?._id;
-    console.log(user)
+    console.log(user);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-
-    const writerId = `WRT-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
+    const writerId = `WRT-${crypto
+      .randomBytes(4)
+      .toString("hex")
+      .toUpperCase()}`;
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
@@ -46,11 +48,11 @@ export const assignWriterId = async (req: Request, res: Response) => {
 };
 export const fetchWriters = async (req: Request, res: Response) => {
   try {
-    console.log("on mission to fetch writers hehe")
+    console.log("on mission to fetch writers hehe");
     const writers = await User.find({
       "writer.writerId": { $exists: true, $ne: null },
     }).select("_id name nickname writer");
-    console.log("writers:",writers)
+    console.log("writers:", writers);
     res.status(200).json(writers);
   } catch (error) {
     console.error("Error fetching writers:", error);
@@ -89,6 +91,7 @@ export const addIdeaInbox = async (req: Request, res: Response) => {
         message: "Unauthorized — performer not found.",
       });
     }
+    console.log(aiResult.text);
     const newIdea = {
       performerName: performer.name,
       performerId: performer._id,
@@ -112,6 +115,34 @@ export const addIdeaInbox = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: "Server error while sharing idea.",
+    });
+  }
+};
+export const removeIdea = async (req: Request, res: Response) => {
+  try {
+    const { writerId, submittedAt } = req.body;
+
+    if (!writerId || !submittedAt) {
+      return res.status(400).json({
+        success: false,
+        message: "Writer ID and submittedAt are required.",
+      });
+    }
+    await User.updateOne(
+      { "writer.writerId": writerId },
+      { $pull: { "writer.ideaInbox": { submittedAt: new Date(submittedAt) } } }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Idea removed successfully",
+      
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
     });
   }
 };
