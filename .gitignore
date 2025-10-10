@@ -35,3 +35,7 @@ build/
 
 # Coverage / testing
 coverage/
+
+*.md
+!README.md
+!readme.md
