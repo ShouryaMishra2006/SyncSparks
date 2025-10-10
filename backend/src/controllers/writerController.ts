@@ -79,7 +79,9 @@ export const addIdeaInbox = async (req: Request, res: Response) => {
         message: "Writer ID and AI result are required.",
       });
     }
-    const genre = await genreClassifier(aiResult); // 🎯 Auto classify here
+    const result = await genreClassifier(aiResult); // 🎯 Auto classify here
+    const genre= result.genre
+    console.log("genre", genre);
     const writerUser = await User.findOne({ "writer.writerId": writerId });
     if (!writerUser) {
       return res.status(404).json({
@@ -104,7 +106,7 @@ export const addIdeaInbox = async (req: Request, res: Response) => {
       genre,
     };
     writerUser.writer?.ideaInbox.push(newIdea);
-
+      console.log("writer user", writerUser)
     await writerUser.save();
 
     return res.status(200).json({

@@ -29,7 +29,8 @@ interface DeveloperSquad {
 
 export default function WriterDashboard() {
   const { user } = useAuth();
-
+  
+console.log(user)
   const [ideas, setIdeas] = useState<IdeaInboxItem[]>([]);
   const [filteredIdeas, setFilteredIdeas] = useState<IdeaInboxItem[]>([]);
   const [selectedIdea, setSelectedIdea] = useState<IdeaInboxItem | null>(null);
@@ -42,6 +43,7 @@ const [genreFilter, setGenreFilter] = useState<string>("All");
   useEffect(() => {
     if (user?.writer?.ideaInbox) {
       setIdeas(user.writer.ideaInbox);
+      console.log("ideas for inbox",ideas)
     }
   }, [user?.writer?.ideaInbox]);
 

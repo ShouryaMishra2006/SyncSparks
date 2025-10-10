@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         })
         console.log(res)
         if (!res.ok) throw new Error("Not logged in")
-        const data = await res.json()
+          const data = await res.json()
         setUser(data.user) 
       } catch (err) {
         setUser(null)
@@ -82,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     fetchUser()
+    if(user?.role=='writer') console.log("user as writer",user.writer);
   }, [])
 
   return (

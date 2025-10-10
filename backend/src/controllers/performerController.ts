@@ -278,3 +278,35 @@ export const searchWriter = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Error searching writer" });
   }
 };
+
+
+
+
+// DELETE /api/performer/squads/:squadId/idea/:ideaId
+export const handleDeleteIdea = async (req: Request, res: Response) => {
+  const { squadId, ideaId } = req.params;
+
+  if (!squadId || !ideaId) {
+    return res.status(400).json({ success: false, message: "Squad ID and Idea ID are required" });
+  }
+
+  try {
+    const squad = await PerformerSquad.findById(squadId);
+    if (!squad) {
+      return res.status(404).json({ success: false, message: "Squad not found" });
+    }
+
+    const ideaIndex = squad.ideas.findIndex((i) => i._id.toString() === ideaId);
+    if (ideaIndex === -1) {
+      return res.status(404).json({ success: false, message: "Idea not found" });
+    }
+
+    squad.ideas.splice(ideaIndex, 1); // remove the idea
+    await squad.save();
+
+    return res.status(200).json({ success: true, message: "Idea deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting idea:", err);
+    return res.status(500).json({ success: false, message: "Server error while deleting idea" });
+  }
+};

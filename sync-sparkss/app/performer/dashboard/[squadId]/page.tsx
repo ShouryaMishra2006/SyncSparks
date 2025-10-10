@@ -391,6 +391,7 @@ export default function SquadDashboard() {
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
+          console.log("performer shared", data)
           alert(`AI result shared successfully`);
         } else {
           alert(`Failed to share AI result: ${data.message || "Error"}`);
@@ -401,6 +402,40 @@ export default function SquadDashboard() {
         alert("Error sharing AI result.");
       });
   };
+
+  const handleDeleteIdea = async (ideaId: string) => {
+  if (!squad) return;
+
+  const confirmDelete = confirm("Are you sure you want to delete this idea?");
+  if (!confirmDelete) return;
+
+  try {
+    const res = await fetch(
+      `http://localhost:4000/api/performer/squads/${squad._id}/idea/${ideaId}`,
+      {
+        method: "DELETE",
+        credentials: "include",
+      }
+    );
+
+    const data = await res.json();
+    if (res.ok) {
+      // Remove idea locally
+      setIdeas((prev) => prev.filter((idea) => idea._id !== ideaId));
+      setSquad({
+        ...squad,
+        ideas: squad.ideas.filter((idea) => idea._id !== ideaId),
+      });
+      alert("Idea deleted successfully");
+    } else {
+      alert(data.message || "Failed to delete idea");
+    }
+  } catch (err) {
+    console.error("Error deleting idea:", err);
+    alert("Error deleting idea");
+  }
+};
+
 
   return (
     <div className="min-h-screen text-white p-6 relative">
@@ -506,7 +541,14 @@ export default function SquadDashboard() {
                     {idea.createdBy?.nickname || idea.createdBy?.name} ·{" "}
                     {new Date(idea.createdAt).toLocaleString()}
                   </p>
+                   <Button
+          onClick={() => handleDeleteIdea(idea._id)}
+          className="bg-red-600 hover:bg-red-700 text-xs h-6 px-2"
+        >
+          Delete
+        </Button>
                 </div>
+                 
               ))
             )}
           </div>

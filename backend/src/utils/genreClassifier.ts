@@ -63,6 +63,7 @@ export const genreClassifier = async (aiResult: AiResult): Promise<GenreClassifi
     title: aiResult.title,
     text: aiResult.text,
   });
+  console.log("response from ai for genre categorization", response)
   // Safely extract the genre whether the response is string or object
   let genre: string = "Uncategorized";
   if (!response.content) return { ...aiResult, genre };

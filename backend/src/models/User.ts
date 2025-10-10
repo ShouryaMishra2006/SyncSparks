@@ -37,6 +37,10 @@ const writerExtensionSchema = new mongoose.Schema({
         type: Date,
         default: Date.now,
       },
+      genre:{
+        type: String,
+        default: "Uncategorized"
+      },
     },
   ],
 });
