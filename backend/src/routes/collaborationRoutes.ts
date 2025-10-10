@@ -7,6 +7,7 @@ import {
   saveCanvasData,
   getCanvasData,
   leaveSession,
+  getConnectedUsers,
 } from "../controllers/collaborationController";
 import { requireAuth } from "../middleware/authMiddleware";
 
@@ -19,5 +20,6 @@ router.get("/session/:id", requireAuth, getSessionDetails);
 router.post("/session/:id/canvas", requireAuth, saveCanvasData);
 router.get("/session/:id/canvas", requireAuth, getCanvasData);
 router.post("/session/:id/leave", requireAuth, leaveSession);
+router.get("/session/:id/connected-users", requireAuth, getConnectedUsers);
 
 export default router;

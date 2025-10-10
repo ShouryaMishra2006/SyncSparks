@@ -19,6 +19,7 @@
     "@langchain/google-vertexai": "^0.2.18",
     "@types/bcryptjs": "^3.0.0",
     "@types/express-session": "^1.18.2",
+    "@types/natural": "^5.1.5",
     "@types/passport": "^1.0.17",
     "@types/stopword": "^2.0.3",
     "@types/ws": "^8.18.1",

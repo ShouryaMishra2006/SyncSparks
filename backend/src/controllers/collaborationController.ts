@@ -13,16 +13,28 @@ interface AuthUser {
 
 export const createSession = async (req: Request, res: Response) => {
   try {
-    const { name } = req.body;
+    const { name, userId } = req.body;
 
     if (!name) {
       return res.status(400).json({ message: "Session name is required" });
+    }
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
     }
 
     const user = req.user as AuthUser;
 
     if (!user) {
       return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // Verify that the authenticated user matches the provided userId
+    if (user._id.toString() !== userId) {
+      return res.status(403).json({
+        message:
+          "User ID mismatch. The authenticated user does not match the provided user ID.",
+      });
     }
 
     // Generate a secure random invitation code (8 characters, alphanumeric)
@@ -69,7 +81,7 @@ export const getSessions = async (req: Request, res: Response) => {
 
 export const joinSession = async (req: Request, res: Response) => {
   try {
-    const { invitationCode } = req.body;
+    const { invitationCode, userId } = req.body;
     const user = req.user as AuthUser;
 
     if (!user) {
@@ -80,6 +92,18 @@ export const joinSession = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Invitation code required" });
     }
 
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
+
+    // Verify that the authenticated user matches the provided userId
+    if (user._id.toString() !== userId) {
+      return res.status(403).json({
+        message:
+          "User ID mismatch. The authenticated user does not match the provided user ID.",
+      });
+    }
+
     const session = await CollaborationSession.findOne({
       invitationCode: invitationCode,
     });
@@ -88,8 +112,10 @@ export const joinSession = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Invalid invitation code" });
     }
 
-    const userId = user._id.toString();
-    const hasJoined = session.participants.some((p) => p.toString() === userId);
+    const userIdString = user._id.toString();
+    const hasJoined = session.participants.some(
+      (p) => p.toString() === userIdString
+    );
 
     if (hasJoined) {
       return res.status(200).json({ message: "Already joined", session });
@@ -252,6 +278,48 @@ export const leaveSession = async (req: Request, res: Response) => {
     return res.json({ message: "Left session successfully" });
   } catch (err) {
     console.error("Leave session error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const getConnectedUsers = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = req.user as AuthUser;
+
+    if (!user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid session ID" });
+    }
+
+    const session = await CollaborationSession.findById(id);
+
+    if (!session) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+
+    // Check if user is a participant
+    const userId = user._id.toString();
+    const isParticipant = session.participants.some(
+      (p: any) => p.toString() === userId
+    );
+
+    if (!isParticipant) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    // Import the function from index.ts to get connected users
+    const { getConnectedUsers: getConnectedUsersFromWS } = await import(
+      "../index.js"
+    );
+    const connectedUsers = getConnectedUsersFromWS(id);
+
+    return res.json({ connectedUsers });
+  } catch (err) {
+    console.error("Get connected users error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 };
