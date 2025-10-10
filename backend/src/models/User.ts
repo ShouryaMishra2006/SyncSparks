@@ -40,6 +40,14 @@ const writerExtensionSchema = new mongoose.Schema({
     },
   ],
 });
+const developerExtensionSchema = new mongoose.Schema({
+  squadsJoined: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DeveloperSquad", 
+    },
+  ],
+});
 
 const userSchema = new mongoose.Schema({
   name: String,
@@ -54,7 +62,8 @@ const userSchema = new mongoose.Schema({
     expiresAt: Date,
   },
   performer: performerExtensionSchema,
-  writer: writerExtensionSchema
+  writer: writerExtensionSchema,
+  developer: developerExtensionSchema,
 })
 userSchema.index({ "writer.writerId": 1 }, { unique: true, sparse: true });
 export default mongoose.model("User", userSchema)

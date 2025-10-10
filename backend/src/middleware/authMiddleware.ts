@@ -29,9 +29,18 @@ export const requireAuth = async (
     if (!userId) {
       return res.status(401).json({ message: "Invalid token format" });
     }
-
-    const user = await User.findById(userId);
-
+    const user = await User.findById(userId)
+      .populate({
+        path: "developer.squadsJoined",
+        model: "DeveloperSquad",
+        select: "name description inviteCode",
+      })
+      .populate({
+        path: "writer.ideaInbox.performerId",
+        model: "User",
+        select: "name email",
+      })
+      .lean();
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -43,6 +52,7 @@ export const requireAuth = async (
       isVerified: user.isVerified,
       role: user.role,
       writer: user.writer,
+      developer:user.developer,
     };
 
     next();

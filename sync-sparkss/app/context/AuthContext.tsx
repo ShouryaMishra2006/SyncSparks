@@ -2,25 +2,51 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react"
 
-interface IdeaInboxItem {
+export interface IdeaInboxItem {
   performerName: string;
   performerId: string;
   idea: string;
   submittedAt: string; 
 }
-
-interface WriterInfo {
-  writerId: string;
+export interface WriterInfo {
+  writerId?: string;
   ideaInbox?: IdeaInboxItem[];
 }
+export interface PerformerInfo {
+  squadsJoined?: string[]; 
+  ideas?: string[];
+}
 
-interface User {
-  _id: string;      
+export interface DeveloperRequest {
+  writerId: string;
+  writerName: string;
+  idea: string;
+  submittedAt: string;
+  markAsDone: boolean;
+}
+
+export interface DeveloperSquad {
+  _id: string;
   name: string;
-  nickname?: string; 
+  description: string;
+  inviteCode: string;
+}
+
+export interface DeveloperInfo {
+  squadsJoined?: DeveloperSquad[];
+  requestsReceived?: DeveloperRequest[];
+}
+export interface User {
+  _id: string;
+  name: string;
+  nickname?: string;
   email: string;
   isVerified: boolean;
+  role: "performer" | "writer" | "developer";
+
+  performer?: PerformerInfo;
   writer?: WriterInfo;
+  developer?: DeveloperInfo;
 }
 
 

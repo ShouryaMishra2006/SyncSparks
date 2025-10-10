@@ -69,8 +69,6 @@ export default function SquadDashboard() {
   
   const [showMindMap, setShowMindMap] = useState(false);
   const [mindMapData, setMindMapData] = useState<any>(null);
-
-    // 🎤 Speech recognition
   const [aiResult, setAiResult] = useState<AiResult | null>(null);
   const [query, setQuery] = useState("");
   const [writerid,setwriterid]=useState("");
