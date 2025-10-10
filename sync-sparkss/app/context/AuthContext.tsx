@@ -7,6 +7,7 @@ export interface IdeaInboxItem {
   performerId: string;
   idea: string;
   submittedAt: string; 
+  genre: string;
 }
 export interface WriterInfo {
   writerId?: string;

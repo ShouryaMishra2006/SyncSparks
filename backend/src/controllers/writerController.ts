@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import User from "../models/User";
 import crypto from "crypto";
+import { genreClassifier } from "../utils/genreClassifier";
+
 interface AuthUser {
   _id: string;
   name: string;
@@ -77,6 +79,7 @@ export const addIdeaInbox = async (req: Request, res: Response) => {
         message: "Writer ID and AI result are required.",
       });
     }
+    const genre = await genreClassifier(aiResult); // 🎯 Auto classify here
     const writerUser = await User.findOne({ "writer.writerId": writerId });
     if (!writerUser) {
       return res.status(404).json({
@@ -92,11 +95,13 @@ export const addIdeaInbox = async (req: Request, res: Response) => {
       });
     }
     console.log(aiResult.text);
+
     const newIdea = {
       performerName: performer.name,
       performerId: performer._id,
       idea: aiResult.text,
       submittedAt: new Date(),
+      genre,
     };
     writerUser.writer?.ideaInbox.push(newIdea);
 
