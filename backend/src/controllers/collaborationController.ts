@@ -142,8 +142,8 @@ export const getSessionDetails = async (req: Request, res: Response) => {
     console.error(err);
     return res.status(500).json({ message: "Server error" });
   }
-}; 
-//TODO: 
+};
+//TODO:
 //in this first save to an in memory db (like memcached)
 //and then after exiting, or maybe every 1 minute, store it in the db
 export const saveCanvasData = async (req: Request, res: Response) => {
@@ -218,6 +218,40 @@ export const getCanvasData = async (req: Request, res: Response) => {
     return res.json({ canvasData: session.canvasData || {} });
   } catch (err) {
     console.error("Get canvas error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const leaveSession = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = req.user as AuthUser;
+
+    if (!user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid session ID" });
+    }
+
+    const session = await CollaborationSession.findById(id);
+
+    if (!session) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+
+    // Remove user from participants
+    const userId = user._id.toString();
+    session.participants = session.participants.filter(
+      (p: any) => p.toString() !== userId
+    );
+
+    await session.save();
+
+    return res.json({ message: "Left session successfully" });
+  } catch (err) {
+    console.error("Leave session error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 };

@@ -27,12 +27,6 @@ type Session = {
   participants: Array<{ _id: string; name: string }>;
 };
 
-type Notification = {
-  id: string;
-  message: string;
-  type: "success" | "info" | "warning";
-};
-
 export default function CollaborationCanvas() {
   const { user, loading, isAuthenticated } = useAuth();
   const params = useParams();
@@ -45,8 +39,6 @@ export default function CollaborationCanvas() {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [newCardHeading, setNewCardHeading] = useState("");
   const [newCardContent, setNewCardContent] = useState("");
-  const [participantCount, setParticipantCount] = useState(0);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   // Toolbar dragging state
   const [toolbarPosition, setToolbarPosition] = useState({ x: 16, y: 96 });
@@ -100,20 +92,6 @@ export default function CollaborationCanvas() {
     );
     providerRef.current = provider;
 
-    // Helper function to show notifications
-    const showNotification = (
-      message: string,
-      type: "success" | "info" | "warning"
-    ) => {
-      const id = `notif-${Date.now()}`;
-      setNotifications((prev) => [...prev, { id, message, type }]);
-
-      // Auto-remove after 4 seconds
-      setTimeout(() => {
-        setNotifications((prev) => prev.filter((n) => n.id !== id));
-      }, 4000);
-    };
-
     // Listen to WebSocket status
     provider.on("status", ({ status }: { status: string }) => {
       console.log("WebSocket status:", status);
@@ -123,68 +101,6 @@ export default function CollaborationCanvas() {
         console.log("Disconnected from collaboration server");
       }
     });
-
-    // Access the underlying WebSocket to listen for custom messages
-    const setupMessageListener = () => {
-      if (provider.ws) {
-        const originalOnMessage = provider.ws.onmessage;
-
-        provider.ws.onmessage = (event) => {
-          // First, let y-websocket handle its own messages
-          if (originalOnMessage && provider.ws) {
-            originalOnMessage.call(provider.ws, event);
-          }
-
-          // Then check for custom JSON messages
-          try {
-            const data = JSON.parse(event.data);
-
-            switch (data.type) {
-              case "user-joined":
-                if (data.data?.userId !== user._id) {
-                  // Don't show notification for self
-                  showNotification(
-                    `${data.data.userName} has joined`,
-                    "success"
-                  );
-                }
-                if (data.data?.participantCount !== undefined) {
-                  setParticipantCount(data.data.participantCount);
-                }
-                break;
-
-              case "user-left":
-                if (data.data?.userId !== user._id) {
-                  showNotification(`${data.data.userName} has left`, "warning");
-                }
-                if (data.data?.participantCount !== undefined) {
-                  setParticipantCount(data.data.participantCount);
-                }
-                break;
-
-              case "participant-count":
-                setParticipantCount(data.count);
-                break;
-
-              default:
-                break;
-            }
-          } catch {
-            // Not JSON or not a custom message, ignore
-          }
-        };
-      }
-    };
-
-    // Setup message listener after connection is established
-    provider.on("sync", (isSynced: boolean) => {
-      if (isSynced) {
-        setupMessageListener();
-      }
-    });
-
-    // Try to setup immediately if already connected
-    setupMessageListener();
 
     const elementsMap = ydoc.getMap("elements");
     elementsMapRef.current = elementsMap;
@@ -256,7 +172,7 @@ export default function CollaborationCanvas() {
       provider.destroy();
       ydoc.destroy();
     };
-  }, [isAuthenticated, sessionId, router, user]);
+  }, [isAuthenticated, sessionId, router, user, session?.participants.length]);
 
   if (loading) return <div className="text-white p-10">Loading...</div>;
 
@@ -421,6 +337,33 @@ export default function CollaborationCanvas() {
     setIsDraggingToolbar(false);
   };
 
+  const handleLeaveSession = async () => {
+    try {
+      // Call the leave session API
+      const res = await fetch(
+        `http://localhost:4000/api/collab/session/${sessionId}/leave`,
+        {
+          method: "POST",
+          credentials: "include",
+        }
+      );
+
+      if (res.ok) {
+        // Navigate to hub after successfully leaving
+        router.push("/collab/hub");
+      } else {
+        const data = await res.json();
+        console.error("Failed to leave session:", data.message);
+        // Still navigate even if API fails
+        router.push("/collab/hub");
+      }
+    } catch (err) {
+      console.error("Error leaving session:", err);
+      // Still navigate even if there's an error
+      router.push("/collab/hub");
+    }
+  };
+
   return (
     <div
       className="min-h-screen bg-gradient-to-b from-gray-900 via-black to-gray-950 text-white overflow-hidden"
@@ -443,10 +386,7 @@ export default function CollaborationCanvas() {
             <p className="text-sm text-gray-400 flex items-center gap-2">
               <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
               <span>
-                {participantCount > 0
-                  ? participantCount
-                  : session?.participants?.length || 0}{" "}
-                participant(s) online
+                {session?.participants?.length || 0} participant(s) online
               </span>
             </p>
           </div>
@@ -459,11 +399,9 @@ export default function CollaborationCanvas() {
                 </p>
               </div>
             )}
-            <Link href="/collab/hub">
-              <Button variant="outline" size="sm">
-                Back to Hub
-              </Button>
-            </Link>
+            <Button variant="outline" size="sm" onClick={handleLeaveSession}>
+              Back to Hub
+            </Button>
           </div>
         </div>
       </div>
@@ -628,68 +566,27 @@ export default function CollaborationCanvas() {
         ))}
       </div>
 
-      {/* Toast Notifications */}
-      <div className="fixed bottom-6 right-6 z-50 space-y-2">
-        {notifications.map((notification) => (
-          <div
-            key={notification.id}
-            className={`px-4 py-3 rounded-lg shadow-2xl backdrop-blur-sm border flex items-center gap-3 animate-slide-in-right ${
-              notification.type === "success"
-                ? "bg-green-900/80 border-green-500/50 text-green-100"
-                : notification.type === "warning"
-                ? "bg-orange-900/80 border-orange-500/50 text-orange-100"
-                : "bg-blue-900/80 border-blue-500/50 text-blue-100"
-            }`}
-          >
-            {notification.type === "success" && (
-              <svg
-                className="w-5 h-5 text-green-300 flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
-                />
-              </svg>
-            )}
-            {notification.type === "warning" && (
-              <svg
-                className="w-5 h-5 text-orange-300 flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6z"
-                />
-              </svg>
-            )}
-            {notification.type === "info" && (
-              <svg
-                className="w-5 h-5 text-blue-300 flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            )}
-            <p className="text-sm font-medium">{notification.message}</p>
-          </div>
-        ))}
-      </div>
+      {/* Reload Button - Bottom Right */}
+      <button
+        onClick={() => window.location.reload()}
+        className="fixed bottom-6 right-6 z-50 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg shadow-2xl backdrop-blur-sm border border-blue-500/50 flex items-center gap-2 transition-all hover:scale-105"
+        title="Reload to see latest participants"
+      >
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+          />
+        </svg>
+        <span className="text-sm font-medium">Load Latest Participants</span>
+      </button>
     </div>
   );
 }
