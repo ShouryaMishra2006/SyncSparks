@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { PromptTemplate } from "@langchain/core/prompts";
 import PerformerSquad from "../models/PerformerSquad";
+import {extractKeywords} from "../utils/extractKeywords"
 
 /**
  * POST /api/ai/mindmap/:squadId
@@ -34,6 +35,11 @@ export const generateMindMapBySquad = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "No ideas in squad" });
     }
 
+    console.log(lastIdeas);
+    const keywords = extractKeywords(lastIdeas, 25);
+    console.log("Extracted Keywords:", keywords);
+
+
     // Build prompt that requests strict JSON
     const promptText = `
 You are an assistant that MUST output valid JSON only. Given the following ideas (text + author) produce a mind map describing the workflow formed by these ideas.
@@ -47,9 +53,10 @@ Rules:
 - Labels short (3-6 words). Explanations 1-2 sentences.
 - Edges must refer to node indices (0-based).
 - Respond ONLY with valid JSON and nothing else.
-
 Ideas:
 ${lastIdeas.map((it: any, i: number) => `${i + 1}. (${it.author || "Anon"}) ${it.text}`).join("\n\n")}
+Extracted Keywords:
+${keywords.join(", ")}
 `.trim();
 
     const llm = new ChatGoogleGenerativeAI({
