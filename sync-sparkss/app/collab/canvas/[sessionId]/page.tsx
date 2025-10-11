@@ -6,7 +6,7 @@ import { useAuth } from "@/app/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import * as Y from "yjs";
+import {Doc as YDoc, Map as YMap} from "yjs"; 
 import { WebsocketProvider } from "y-websocket";
 
 type CanvasElement = {
@@ -27,6 +27,14 @@ type Session = {
   participants: Array<{ _id: string; name: string }>;
 };
 
+// Grid configuration
+const GRID_SIZE = 50; // Match the background grid size
+
+// Helper function to snap coordinates to grid
+const snapToGrid = (value: number): number => {
+  return Math.round(value / GRID_SIZE) * GRID_SIZE;
+};
+
 export default function CollaborationCanvas() {
   const { user, loading, isAuthenticated } = useAuth();
   const params = useParams();
@@ -37,6 +45,7 @@ export default function CollaborationCanvas() {
   const [elements, setElements] = useState<CanvasElement[]>([]);
   const [draggedElement, setDraggedElement] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [tempDragPosition, setTempDragPosition] = useState<{ x: number; y: number } | null>(null);
   const [newCardHeading, setNewCardHeading] = useState("");
   const [newCardContent, setNewCardContent] = useState("");
 
@@ -47,9 +56,9 @@ export default function CollaborationCanvas() {
 
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  const ydocRef = useRef<Y.Doc | null>(null);
+  const ydocRef = useRef<YDoc | null>(null);
   const providerRef = useRef<WebsocketProvider | null>(null);
-  const elementsMapRef = useRef<Y.Map<unknown> | null>(null);
+  const elementsMapRef = useRef<YMap<unknown> | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated || !sessionId || !user) return;
@@ -79,7 +88,7 @@ export default function CollaborationCanvas() {
     fetchSession();
 
     // Initialize Y.js
-    const ydoc = new Y.Doc();
+    const ydoc = new YDoc();
     ydocRef.current = ydoc;
 
     // Connect with user info in URL
@@ -118,7 +127,20 @@ export default function CollaborationCanvas() {
     updateLocalState();
 
     // Listen for changes
-    elementsMap.observe(updateLocalState);
+    elementsMap.observe(ymapEvent => {
+      console.log('Y.Map was modified!')
+      // Access change details from ymapEvent
+      ymapEvent.changes.keys.forEach((change, key) => {
+        if (change.action === 'add') {
+          console.log(`Key "${key}" added with value: ${elementsMap.get(key)}`)
+        } else if (change.action === 'update') {
+          console.log(`Key "${key}" updated from "${change.oldValue}" to "${elementsMap.get(key)}"`)
+        } else if (change.action === 'delete') {
+          console.log(`Key "${key}" deleted (previous value: ${change.oldValue})`)
+        }
+      }) 
+      updateLocalState();
+    });
 
     // Load saved canvas data from database
     const loadCanvasData = async () => {
@@ -150,7 +172,8 @@ export default function CollaborationCanvas() {
       const canvasData: Record<string, unknown> = {};
       elementsMap.forEach((value, key) => {
         canvasData[key] = value;
-      });
+      }); 
+      console.log("Canvas data: ", canvasData)
 
       try {
         await fetch(
@@ -190,12 +213,16 @@ export default function CollaborationCanvas() {
   const handleAddTextbox = () => {
     if (!newCardHeading.trim() || !elementsMapRef.current) return;
 
+    // Generate random position and snap to grid
+    const randomX = 150 + Math.random() * 100;
+    const randomY = 150 + Math.random() * 100;
+
     const newElement = {
       type: "card" as const,
       heading: newCardHeading,
       content: newCardContent,
-      x: 150 + Math.random() * 100,
-      y: 150 + Math.random() * 100,
+      x: snapToGrid(randomX),
+      y: snapToGrid(randomY),
       width: 300,
       height: 200,
     };
@@ -236,7 +263,7 @@ export default function CollaborationCanvas() {
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!draggedElement || !elementsMapRef.current || !canvasRef.current)
+    if (!draggedElement || !canvasRef.current)
       return;
 
     const element = elements.find((el) => el.id === draggedElement);
@@ -256,18 +283,34 @@ export default function CollaborationCanvas() {
       Math.min(newY, canvasRect.height - element.height)
     );
 
-    elementsMapRef.current.set(draggedElement, {
-      type: element.type,
-      heading: element.heading,
-      content: element.content,
-      x: constrainedX,
-      y: constrainedY,
-      width: element.width,
-      height: element.height,
-    });
+    // Update temporary position for smooth visual feedback during drag
+    setTempDragPosition({ x: constrainedX, y: constrainedY });
   };
 
   const handleMouseUp = () => {
+    // Only update Y.js when drag is complete
+    if (draggedElement && tempDragPosition && elementsMapRef.current) {
+      const element = elements.find((el) => el.id === draggedElement);
+      if (element) {
+        // Snap to grid
+        const snappedX = snapToGrid(tempDragPosition.x);
+        const snappedY = snapToGrid(tempDragPosition.y);
+
+        // Update Y.js with final snapped position
+        elementsMapRef.current.set(draggedElement, {
+          type: element.type,
+          heading: element.heading,
+          content: element.content,
+          x: snappedX,
+          y: snappedY,
+          width: element.width,
+          height: element.height,
+        });
+      }
+    }
+
+    // Clear temporary drag position
+    setTempDragPosition(null);
     setDraggedElement(null);
   };
 
@@ -485,85 +528,95 @@ export default function CollaborationCanvas() {
           </div>
         )}
 
-        {elements.map((element) => (
-          <div
-            key={element.id}
-            className={`absolute bg-gradient-to-br from-purple-900/60 to-blue-900/60 backdrop-blur-md border-2 rounded-xl shadow-2xl transition-all overflow-hidden ${
-              draggedElement === element.id
-                ? "cursor-grabbing scale-105 shadow-purple-500/50 z-50 border-purple-400"
-                : "hover:border-purple-400 hover:shadow-purple-500/30 border-purple-500/50"
-            }`}
-            style={{
-              left: element.x,
-              top: element.y,
-              width: element.width,
-              height: element.height,
-            }}
-          >
-            {/* Header - Draggable Area */}
+        {elements.map((element) => {
+          // Use temporary position during drag for smooth feedback, otherwise use element position
+          const displayX = draggedElement === element.id && tempDragPosition 
+            ? tempDragPosition.x 
+            : element.x;
+          const displayY = draggedElement === element.id && tempDragPosition 
+            ? tempDragPosition.y 
+            : element.y;
+
+          return (
             <div
-              className={`flex items-center justify-between px-3 py-2 bg-gradient-to-r from-purple-800/50 to-blue-800/50 border-b border-purple-500/30 ${
+              key={element.id}
+              className={`absolute bg-gradient-to-br from-purple-900/60 to-blue-900/60 backdrop-blur-md border-2 rounded-xl shadow-2xl transition-all overflow-hidden ${
                 draggedElement === element.id
-                  ? "cursor-grabbing"
-                  : "cursor-grab"
+                  ? "cursor-grabbing scale-105 shadow-purple-500/50 z-50 border-purple-400"
+                  : "hover:border-purple-400 hover:shadow-purple-500/30 border-purple-500/50"
               }`}
-              onMouseDown={(e) => handleMouseDown(e, element.id, element)}
+              style={{
+                left: displayX,
+                top: displayY,
+                width: element.width,
+                height: element.height,
+              }}
             >
-              <input
-                type="text"
-                className="flex-1 bg-transparent text-white font-semibold text-sm outline-none placeholder-gray-400"
-                value={element.heading}
-                onChange={(e) =>
-                  handleElementHeadingChange(element.id, e.target.value)
-                }
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => e.stopPropagation()}
-                placeholder="Card heading..."
-              />
-              <div className="flex items-center gap-2">
-                <button
-                  className="text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded p-1 transition-colors"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (confirm("Delete this card?")) {
-                      handleDeleteElement(element.id);
-                    }
-                  }}
-                  title="Delete card"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+              {/* Header - Draggable Area */}
+              <div
+                className={`flex items-center justify-between px-3 py-2 bg-gradient-to-r from-purple-800/50 to-blue-800/50 border-b border-purple-500/30 ${
+                  draggedElement === element.id
+                    ? "cursor-grabbing"
+                    : "cursor-grab"
+                }`}
+                onMouseDown={(e) => handleMouseDown(e, element.id, element)}
+              >
+                <input
+                  type="text"
+                  className="flex-1 bg-transparent text-white font-semibold text-sm outline-none placeholder-gray-400"
+                  value={element.heading}
+                  onChange={(e) =>
+                    handleElementHeadingChange(element.id, e.target.value)
+                  }
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                  placeholder="Card heading..."
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    className="text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded p-1 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm("Delete this card?")) {
+                        handleDeleteElement(element.id);
+                      }
+                    }}
+                    title="Delete card"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                </button>
-                <div className="text-gray-400 text-xs cursor-grab">⋮⋮</div>
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                  </button>
+                  <div className="text-gray-400 text-xs cursor-grab">⋮⋮</div>
+                </div>
+              </div>
+
+              {/* Content - Editable Area */}
+              <div className="p-3 h-[calc(100%-44px)] overflow-auto">
+                <textarea
+                  className="w-full h-full bg-transparent text-white placeholder-gray-400 resize-none outline-none text-sm leading-relaxed"
+                  value={element.content}
+                  onChange={(e) =>
+                    handleElementContentChange(element.id, e.target.value)
+                  }
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                  placeholder="Type your content here..."
+                />
               </div>
             </div>
-
-            {/* Content - Editable Area */}
-            <div className="p-3 h-[calc(100%-44px)] overflow-auto">
-              <textarea
-                className="w-full h-full bg-transparent text-white placeholder-gray-400 resize-none outline-none text-sm leading-relaxed"
-                value={element.content}
-                onChange={(e) =>
-                  handleElementContentChange(element.id, e.target.value)
-                }
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => e.stopPropagation()}
-                placeholder="Type your content here..."
-              />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Reload Button - Bottom Right */}

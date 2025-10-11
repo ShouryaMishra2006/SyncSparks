@@ -13,28 +13,16 @@ interface AuthUser {
 
 export const createSession = async (req: Request, res: Response) => {
   try {
-    const { name, userId } = req.body;
+    const { name } = req.body;
 
     if (!name) {
       return res.status(400).json({ message: "Session name is required" });
-    }
-
-    if (!userId) {
-      return res.status(400).json({ message: "User ID is required" });
     }
 
     const user = req.user as AuthUser;
 
     if (!user) {
       return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    // Verify that the authenticated user matches the provided userId
-    if (user._id.toString() !== userId) {
-      return res.status(403).json({
-        message:
-          "User ID mismatch. The authenticated user does not match the provided user ID.",
-      });
     }
 
     // Generate a secure random invitation code (8 characters, alphanumeric)
@@ -81,7 +69,7 @@ export const getSessions = async (req: Request, res: Response) => {
 
 export const joinSession = async (req: Request, res: Response) => {
   try {
-    const { invitationCode, userId } = req.body;
+    const { invitationCode } = req.body;
     const user = req.user as AuthUser;
 
     if (!user) {
@@ -90,18 +78,6 @@ export const joinSession = async (req: Request, res: Response) => {
 
     if (!invitationCode) {
       return res.status(400).json({ message: "Invitation code required" });
-    }
-
-    if (!userId) {
-      return res.status(400).json({ message: "User ID is required" });
-    }
-
-    // Verify that the authenticated user matches the provided userId
-    if (user._id.toString() !== userId) {
-      return res.status(403).json({
-        message:
-          "User ID mismatch. The authenticated user does not match the provided user ID.",
-      });
     }
 
     const session = await CollaborationSession.findOne({
