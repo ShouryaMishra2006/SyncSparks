@@ -6,7 +6,7 @@ import { useAuth } from "@/app/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import {Doc as YDoc, Map as YMap} from "yjs"; 
+import { Doc as YDoc, Map as YMap } from "yjs";
 import { WebsocketProvider } from "y-websocket";
 
 type CanvasElement = {
@@ -28,7 +28,7 @@ type Session = {
 };
 
 // Grid configuration
-const GRID_SIZE = 50; // Match the background grid size
+const GRID_SIZE = 100; // Lower resolution with larger grid cells
 
 // Helper function to snap coordinates to grid
 const snapToGrid = (value: number): number => {
@@ -45,7 +45,10 @@ export default function CollaborationCanvas() {
   const [elements, setElements] = useState<CanvasElement[]>([]);
   const [draggedElement, setDraggedElement] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [tempDragPosition, setTempDragPosition] = useState<{ x: number; y: number } | null>(null);
+  const [tempDragPosition, setTempDragPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
   const [newCardHeading, setNewCardHeading] = useState("");
   const [newCardContent, setNewCardContent] = useState("");
 
@@ -152,19 +155,25 @@ export default function CollaborationCanvas() {
     updateLocalState();
 
     // Listen for changes and save to database with debounce
-    elementsMap.observe(ymapEvent => {
-      console.log('Y.Map was modified!')
+    elementsMap.observe((ymapEvent) => {
+      console.log("Y.Map was modified!");
       // Access change details from ymapEvent
       ymapEvent.changes.keys.forEach((change, key) => {
-        if (change.action === 'add') {
-          console.log(`Key "${key}" added with value: ${elementsMap.get(key)}`)
-        } else if (change.action === 'update') {
-          console.log(`Key "${key}" updated from "${change.oldValue}" to "${elementsMap.get(key)}"`)
-        } else if (change.action === 'delete') {
-          console.log(`Key "${key}" deleted (previous value: ${change.oldValue})`)
+        if (change.action === "add") {
+          console.log(`Key "${key}" added with value: ${elementsMap.get(key)}`);
+        } else if (change.action === "update") {
+          console.log(
+            `Key "${key}" updated from "${
+              change.oldValue
+            }" to "${elementsMap.get(key)}"`
+          );
+        } else if (change.action === "delete") {
+          console.log(
+            `Key "${key}" deleted (previous value: ${change.oldValue})`
+          );
         }
-      }) 
-      
+      });
+
       // Update local UI immediately
       updateLocalState();
 
@@ -178,7 +187,9 @@ export default function CollaborationCanvas() {
     });
 
     // Load saved canvas data from database
+
     const loadCanvasData = async () => {
+      console.log("We are loading the db state");
       try {
         const res = await fetch(
           `http://localhost:4000/api/collab/session/${sessionId}/canvas`,
@@ -201,7 +212,6 @@ export default function CollaborationCanvas() {
     };
 
     loadCanvasData();
-
     return () => {
       // Clear any pending save timeout
       if (saveTimeoutRef.current) {
@@ -278,8 +288,7 @@ export default function CollaborationCanvas() {
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!draggedElement || !canvasRef.current)
-      return;
+    if (!draggedElement || !canvasRef.current) return;
 
     const element = elements.find((el) => el.id === draggedElement);
     if (!element) return;
@@ -545,12 +554,14 @@ export default function CollaborationCanvas() {
 
         {elements.map((element) => {
           // Use temporary position during drag for smooth feedback, otherwise use element position
-          const displayX = draggedElement === element.id && tempDragPosition 
-            ? tempDragPosition.x 
-            : element.x;
-          const displayY = draggedElement === element.id && tempDragPosition 
-            ? tempDragPosition.y 
-            : element.y;
+          const displayX =
+            draggedElement === element.id && tempDragPosition
+              ? tempDragPosition.x
+              : element.x;
+          const displayY =
+            draggedElement === element.id && tempDragPosition
+              ? tempDragPosition.y
+              : element.y;
 
           return (
             <div
