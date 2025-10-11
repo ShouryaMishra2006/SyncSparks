@@ -15,7 +15,7 @@ import "./config/passport";
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import * as Y from "yjs";
-
+import path from "path";
 connectDB();
 
 const app = express();
@@ -31,6 +31,7 @@ app.use(passport.initialize());
 app.get("/", (req, res) => {
   res.json({ message: "Backend API running" });
 });
+app.use('/previews', express.static(path.join(process.cwd(), 'previews')));
 app.use("/api/auth", authRoutes);
 app.use("/api/performer", performerRoutes);
 app.use("/api/writer", writerRoutes);
