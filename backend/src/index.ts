@@ -35,7 +35,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/performer", performerRoutes);
 app.use("/api/writer", writerRoutes);
 app.use("/api/collab", collaborationRoutes);
-app.use("/api/developer",developerRoutes);
+app.use("/api/developer", developerRoutes);
 // Create a single HTTP server for both Express and WebSocket
 const server = createServer(app);
 

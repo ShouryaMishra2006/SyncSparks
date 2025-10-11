@@ -59,6 +59,7 @@ export default function CollaborationCanvas() {
   const ydocRef = useRef<YDoc | null>(null);
   const providerRef = useRef<WebsocketProvider | null>(null);
   const elementsMapRef = useRef<YMap<unknown> | null>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated || !sessionId || !user) return;
@@ -114,6 +115,30 @@ export default function CollaborationCanvas() {
     const elementsMap = ydoc.getMap("elements");
     elementsMapRef.current = elementsMap;
 
+    // Function to save canvas data to database
+    const saveCanvasData = async () => {
+      const canvasData: Record<string, unknown> = {};
+      elementsMap.forEach((value, key) => {
+        canvasData[key] = value;
+      });
+      console.log("Saving canvas data to database:", canvasData);
+
+      try {
+        await fetch(
+          `http://localhost:4000/api/collab/session/${sessionId}/canvas`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ canvasData }),
+          }
+        );
+        console.log("Canvas data saved successfully");
+      } catch (err) {
+        console.error("Failed to save canvas data:", err);
+      }
+    };
+
     // Sync local state with Y.js
     const updateLocalState = () => {
       const elementsArray: CanvasElement[] = [];
@@ -126,7 +151,7 @@ export default function CollaborationCanvas() {
 
     updateLocalState();
 
-    // Listen for changes
+    // Listen for changes and save to database with debounce
     elementsMap.observe(ymapEvent => {
       console.log('Y.Map was modified!')
       // Access change details from ymapEvent
@@ -139,7 +164,17 @@ export default function CollaborationCanvas() {
           console.log(`Key "${key}" deleted (previous value: ${change.oldValue})`)
         }
       }) 
+      
+      // Update local UI immediately
       updateLocalState();
+
+      // Debounce database save: save 2 seconds after last change
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      saveTimeoutRef.current = setTimeout(() => {
+        saveCanvasData();
+      }, 2000);
     });
 
     // Load saved canvas data from database
@@ -167,31 +202,11 @@ export default function CollaborationCanvas() {
 
     loadCanvasData();
 
-    // Auto-save canvas data every 5 seconds
-    const saveInterval = setInterval(async () => {
-      const canvasData: Record<string, unknown> = {};
-      elementsMap.forEach((value, key) => {
-        canvasData[key] = value;
-      }); 
-      console.log("Canvas data: ", canvasData)
-
-      try {
-        await fetch(
-          `http://localhost:4000/api/collab/session/${sessionId}/canvas`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ canvasData }),
-          }
-        );
-      } catch (err) {
-        console.error("Auto-save failed:", err);
-      }
-    }, 5000);
-
     return () => {
-      clearInterval(saveInterval);
+      // Clear any pending save timeout
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
       provider.destroy();
       ydoc.destroy();
     };
