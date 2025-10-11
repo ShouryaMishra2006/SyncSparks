@@ -6,7 +6,7 @@ import { useAuth } from "@/app/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import * as Y from "yjs";
+import { Doc as YDoc, Map as YMap } from "yjs";
 import { WebsocketProvider } from "y-websocket";
 
 type CanvasElement = {
@@ -27,6 +27,14 @@ type Session = {
   participants: Array<{ _id: string; name: string }>;
 };
 
+// Grid configuration
+const GRID_SIZE = 100; // Lower resolution with larger grid cells
+
+// Helper function to snap coordinates to grid
+const snapToGrid = (value: number): number => {
+  return Math.round(value / GRID_SIZE) * GRID_SIZE;
+};
+
 export default function CollaborationCanvas() {
   const { user, loading, isAuthenticated } = useAuth();
   const params = useParams();
@@ -37,6 +45,10 @@ export default function CollaborationCanvas() {
   const [elements, setElements] = useState<CanvasElement[]>([]);
   const [draggedElement, setDraggedElement] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [tempDragPosition, setTempDragPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
   const [newCardHeading, setNewCardHeading] = useState("");
   const [newCardContent, setNewCardContent] = useState("");
 
@@ -47,9 +59,10 @@ export default function CollaborationCanvas() {
 
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  const ydocRef = useRef<Y.Doc | null>(null);
+  const ydocRef = useRef<YDoc | null>(null);
   const providerRef = useRef<WebsocketProvider | null>(null);
-  const elementsMapRef = useRef<Y.Map<unknown> | null>(null);
+  const elementsMapRef = useRef<YMap<unknown> | null>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated || !sessionId || !user) return;
@@ -79,7 +92,7 @@ export default function CollaborationCanvas() {
     fetchSession();
 
     // Initialize Y.js
-    const ydoc = new Y.Doc();
+    const ydoc = new YDoc();
     ydocRef.current = ydoc;
 
     // Connect with user info in URL
@@ -105,6 +118,30 @@ export default function CollaborationCanvas() {
     const elementsMap = ydoc.getMap("elements");
     elementsMapRef.current = elementsMap;
 
+    // Function to save canvas data to database
+    const saveCanvasData = async () => {
+      const canvasData: Record<string, unknown> = {};
+      elementsMap.forEach((value, key) => {
+        canvasData[key] = value;
+      });
+      console.log("Saving canvas data to database:", canvasData);
+
+      try {
+        await fetch(
+          `http://localhost:4000/api/collab/session/${sessionId}/canvas`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ canvasData }),
+          }
+        );
+        console.log("Canvas data saved successfully");
+      } catch (err) {
+        console.error("Failed to save canvas data:", err);
+      }
+    };
+
     // Sync local state with Y.js
     const updateLocalState = () => {
       const elementsArray: CanvasElement[] = [];
@@ -117,11 +154,42 @@ export default function CollaborationCanvas() {
 
     updateLocalState();
 
-    // Listen for changes
-    elementsMap.observe(updateLocalState);
+    // Listen for changes and save to database with debounce
+    elementsMap.observe((ymapEvent) => {
+      console.log("Y.Map was modified!");
+      // Access change details from ymapEvent
+      ymapEvent.changes.keys.forEach((change, key) => {
+        if (change.action === "add") {
+          console.log(`Key "${key}" added with value: ${elementsMap.get(key)}`);
+        } else if (change.action === "update") {
+          console.log(
+            `Key "${key}" updated from "${
+              change.oldValue
+            }" to "${elementsMap.get(key)}"`
+          );
+        } else if (change.action === "delete") {
+          console.log(
+            `Key "${key}" deleted (previous value: ${change.oldValue})`
+          );
+        }
+      });
+
+      // Update local UI immediately
+      updateLocalState();
+
+      // Debounce database save: save 2 seconds after last change
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      saveTimeoutRef.current = setTimeout(() => {
+        saveCanvasData();
+      }, 2000);
+    });
 
     // Load saved canvas data from database
+
     const loadCanvasData = async () => {
+      console.log("We are loading the db state");
       try {
         const res = await fetch(
           `http://localhost:4000/api/collab/session/${sessionId}/canvas`,
@@ -144,31 +212,11 @@ export default function CollaborationCanvas() {
     };
 
     loadCanvasData();
-
-    // Auto-save canvas data every 5 seconds
-    const saveInterval = setInterval(async () => {
-      const canvasData: Record<string, unknown> = {};
-      elementsMap.forEach((value, key) => {
-        canvasData[key] = value;
-      });
-
-      try {
-        await fetch(
-          `http://localhost:4000/api/collab/session/${sessionId}/canvas`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ canvasData }),
-          }
-        );
-      } catch (err) {
-        console.error("Auto-save failed:", err);
-      }
-    }, 5000);
-
     return () => {
-      clearInterval(saveInterval);
+      // Clear any pending save timeout
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
       provider.destroy();
       ydoc.destroy();
     };
@@ -190,12 +238,16 @@ export default function CollaborationCanvas() {
   const handleAddTextbox = () => {
     if (!newCardHeading.trim() || !elementsMapRef.current) return;
 
+    // Generate random position and snap to grid
+    const randomX = 150 + Math.random() * 100;
+    const randomY = 150 + Math.random() * 100;
+
     const newElement = {
       type: "card" as const,
       heading: newCardHeading,
       content: newCardContent,
-      x: 150 + Math.random() * 100,
-      y: 150 + Math.random() * 100,
+      x: snapToGrid(randomX),
+      y: snapToGrid(randomY),
       width: 300,
       height: 200,
     };
@@ -236,8 +288,7 @@ export default function CollaborationCanvas() {
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!draggedElement || !elementsMapRef.current || !canvasRef.current)
-      return;
+    if (!draggedElement || !canvasRef.current) return;
 
     const element = elements.find((el) => el.id === draggedElement);
     if (!element) return;
@@ -256,18 +307,34 @@ export default function CollaborationCanvas() {
       Math.min(newY, canvasRect.height - element.height)
     );
 
-    elementsMapRef.current.set(draggedElement, {
-      type: element.type,
-      heading: element.heading,
-      content: element.content,
-      x: constrainedX,
-      y: constrainedY,
-      width: element.width,
-      height: element.height,
-    });
+    // Update temporary position for smooth visual feedback during drag
+    setTempDragPosition({ x: constrainedX, y: constrainedY });
   };
 
   const handleMouseUp = () => {
+    // Only update Y.js when drag is complete
+    if (draggedElement && tempDragPosition && elementsMapRef.current) {
+      const element = elements.find((el) => el.id === draggedElement);
+      if (element) {
+        // Snap to grid
+        const snappedX = snapToGrid(tempDragPosition.x);
+        const snappedY = snapToGrid(tempDragPosition.y);
+
+        // Update Y.js with final snapped position
+        elementsMapRef.current.set(draggedElement, {
+          type: element.type,
+          heading: element.heading,
+          content: element.content,
+          x: snappedX,
+          y: snappedY,
+          width: element.width,
+          height: element.height,
+        });
+      }
+    }
+
+    // Clear temporary drag position
+    setTempDragPosition(null);
     setDraggedElement(null);
   };
 
@@ -485,85 +552,97 @@ export default function CollaborationCanvas() {
           </div>
         )}
 
-        {elements.map((element) => (
-          <div
-            key={element.id}
-            className={`absolute bg-gradient-to-br from-purple-900/60 to-blue-900/60 backdrop-blur-md border-2 rounded-xl shadow-2xl transition-all overflow-hidden ${
-              draggedElement === element.id
-                ? "cursor-grabbing scale-105 shadow-purple-500/50 z-50 border-purple-400"
-                : "hover:border-purple-400 hover:shadow-purple-500/30 border-purple-500/50"
-            }`}
-            style={{
-              left: element.x,
-              top: element.y,
-              width: element.width,
-              height: element.height,
-            }}
-          >
-            {/* Header - Draggable Area */}
+        {elements.map((element) => {
+          // Use temporary position during drag for smooth feedback, otherwise use element position
+          const displayX =
+            draggedElement === element.id && tempDragPosition
+              ? tempDragPosition.x
+              : element.x;
+          const displayY =
+            draggedElement === element.id && tempDragPosition
+              ? tempDragPosition.y
+              : element.y;
+
+          return (
             <div
-              className={`flex items-center justify-between px-3 py-2 bg-gradient-to-r from-purple-800/50 to-blue-800/50 border-b border-purple-500/30 ${
+              key={element.id}
+              className={`absolute bg-gradient-to-br from-purple-900/60 to-blue-900/60 backdrop-blur-md border-2 rounded-xl shadow-2xl transition-all overflow-hidden ${
                 draggedElement === element.id
-                  ? "cursor-grabbing"
-                  : "cursor-grab"
+                  ? "cursor-grabbing scale-105 shadow-purple-500/50 z-50 border-purple-400"
+                  : "hover:border-purple-400 hover:shadow-purple-500/30 border-purple-500/50"
               }`}
-              onMouseDown={(e) => handleMouseDown(e, element.id, element)}
+              style={{
+                left: displayX,
+                top: displayY,
+                width: element.width,
+                height: element.height,
+              }}
             >
-              <input
-                type="text"
-                className="flex-1 bg-transparent text-white font-semibold text-sm outline-none placeholder-gray-400"
-                value={element.heading}
-                onChange={(e) =>
-                  handleElementHeadingChange(element.id, e.target.value)
-                }
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => e.stopPropagation()}
-                placeholder="Card heading..."
-              />
-              <div className="flex items-center gap-2">
-                <button
-                  className="text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded p-1 transition-colors"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (confirm("Delete this card?")) {
-                      handleDeleteElement(element.id);
-                    }
-                  }}
-                  title="Delete card"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+              {/* Header - Draggable Area */}
+              <div
+                className={`flex items-center justify-between px-3 py-2 bg-gradient-to-r from-purple-800/50 to-blue-800/50 border-b border-purple-500/30 ${
+                  draggedElement === element.id
+                    ? "cursor-grabbing"
+                    : "cursor-grab"
+                }`}
+                onMouseDown={(e) => handleMouseDown(e, element.id, element)}
+              >
+                <input
+                  type="text"
+                  className="flex-1 bg-transparent text-white font-semibold text-sm outline-none placeholder-gray-400"
+                  value={element.heading}
+                  onChange={(e) =>
+                    handleElementHeadingChange(element.id, e.target.value)
+                  }
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                  placeholder="Card heading..."
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    className="text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded p-1 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm("Delete this card?")) {
+                        handleDeleteElement(element.id);
+                      }
+                    }}
+                    title="Delete card"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                </button>
-                <div className="text-gray-400 text-xs cursor-grab">⋮⋮</div>
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                  </button>
+                  <div className="text-gray-400 text-xs cursor-grab">⋮⋮</div>
+                </div>
+              </div>
+
+              {/* Content - Editable Area */}
+              <div className="p-3 h-[calc(100%-44px)] overflow-auto">
+                <textarea
+                  className="w-full h-full bg-transparent text-white placeholder-gray-400 resize-none outline-none text-sm leading-relaxed"
+                  value={element.content}
+                  onChange={(e) =>
+                    handleElementContentChange(element.id, e.target.value)
+                  }
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                  placeholder="Type your content here..."
+                />
               </div>
             </div>
-
-            {/* Content - Editable Area */}
-            <div className="p-3 h-[calc(100%-44px)] overflow-auto">
-              <textarea
-                className="w-full h-full bg-transparent text-white placeholder-gray-400 resize-none outline-none text-sm leading-relaxed"
-                value={element.content}
-                onChange={(e) =>
-                  handleElementContentChange(element.id, e.target.value)
-                }
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => e.stopPropagation()}
-                placeholder="Type your content here..."
-              />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Reload Button - Bottom Right */}
@@ -587,6 +666,45 @@ export default function CollaborationCanvas() {
         </svg>
         <span className="text-sm font-medium">Load Latest Participants</span>
       </button>
+
+      {/* Connected Clients Panel - Right Side */}
+      <div className="fixed top-20 right-6 w-64 bg-black/90 backdrop-blur-sm border border-purple-600/40 rounded-lg shadow-xl z-40 max-h-[calc(100vh-200px)] overflow-hidden flex flex-col">
+        {/* Panel Header */}
+        <div className="px-4 py-3 bg-purple-900/30 border-b border-purple-600/30">
+          <h3 className="text-sm font-semibold text-purple-300 flex items-center gap-2">
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+              />
+            </svg>
+            Connected Users
+          </h3>
+        </div>
+
+        {/* Users List */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          {session?.participants?.map(
+            (p) => { 
+              return( 
+                <div key={p._id} className="bg-purple-900/20 px-3 py-2 rounded border border-purple-600/30 flex items-center gap-5">
+                  <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
+                    {p.name.charAt(0).toUpperCase()}
+                  </div> 
+                  <div className="w-8 h-8 flex items-center justify-center text-white font-semibold">{p.name}</div>
+                </div>
+              );
+            }
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -36,7 +36,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/performer", performerRoutes);
 app.use("/api/writer", writerRoutes);
 app.use("/api/collab", collaborationRoutes);
-app.use("/api/developer",developerRoutes);
+app.use("/api/developer", developerRoutes);
 // Create a single HTTP server for both Express and WebSocket
 const server = createServer(app);
 
@@ -123,28 +123,13 @@ wss.on("connection", (ws, req) => {
 
   // Listen for updates from this client
   ws.on("message", (message: Buffer) => {
-    // Try to parse as JSON first (for custom messages)
-    try {
-      const textMessage = message.toString("utf-8");
-      const parsed = JSON.parse(textMessage);
-
-      // If successfully parsed as JSON, handle as custom message
-      if (parsed && typeof parsed === "object" && parsed.type) {
-        handleCustomMessage(ws, parsed, sessionId, sessionClients);
-        return;
-      }
-    } catch {
-      // Not JSON, continue to check if it's Y.js binary
-    }
-
-    // Handle as Y.js binary update
+    console.log("Message received: ", message);
     try {
       const uint8Array = new Uint8Array(message);
 
-      // Apply Y.js update
+      console.log("converted uint8Array: ", uint8Array);
       Y.applyUpdate(doc, uint8Array);
 
-      // Broadcast Y.js update to other clients in the same session
       sessionClients.forEach((client) => {
         if (client.ws !== ws && client.ws.readyState === 1) {
           client.ws.send(message);
@@ -192,36 +177,36 @@ wss.on("connection", (ws, req) => {
   });
 });
 
-function handleCustomMessage(
-  ws: any,
-  message: any,
-  sessionId: string,
-  sessionClients: Set<ClientInfo>
-) {
-  switch (message.type) {
-    case "chat":
-      // Broadcast chat message to all clients in session
-      const chatMessage = JSON.stringify({
-        type: "chat",
-        data: {
-          userId: message.userId,
-          userName: message.userName,
-          message: message.message,
-          timestamp: Date.now(),
-        },
-      });
-      sessionClients.forEach((client) => {
-        if (client.ws.readyState === 1) {
-          client.ws.send(chatMessage);
-        }
-      });
-      break;
+// function handleCustomMessage(
+//   ws: any,
+//   message: any,
+//   sessionId: string,
+//   sessionClients: Set<ClientInfo>
+// ) {
+//   switch (message.type) {
+//     case "chat":
+//       // Broadcast chat message to all clients in session
+//       const chatMessage = JSON.stringify({
+//         type: "chat",
+//         data: {
+//           userId: message.userId,
+//           userName: message.userName,
+//           message: message.message,
+//           timestamp: Date.now(),
+//         },
+//       });
+//       sessionClients.forEach((client) => {
+//         if (client.ws.readyState === 1) {
+//           client.ws.send(chatMessage);
+//         }
+//       });
+//       break;
 
-    default:
-      console.log("Unknown custom message type:", message.type);
-      break;
-  }
-}
+//     default:
+//       console.log("Unknown custom message type:", message.type);
+//       break;
+//   }
+// }
 
 // Start server
 server.listen(PORT, () => {

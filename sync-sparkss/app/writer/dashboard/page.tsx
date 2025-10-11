@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion } from "framer-motion";
 import { useAuth } from "@/app/context/AuthContext";
 
@@ -12,6 +13,7 @@ interface IdeaInboxItem {
   performerId: string;
   idea: string;
   submittedAt: string;
+  genre: string;
 }
 
 interface Scene {
@@ -27,18 +29,21 @@ interface DeveloperSquad {
 
 export default function WriterDashboard() {
   const { user } = useAuth();
-
+  
+console.log(user)
   const [ideas, setIdeas] = useState<IdeaInboxItem[]>([]);
+  const [filteredIdeas, setFilteredIdeas] = useState<IdeaInboxItem[]>([]);
   const [selectedIdea, setSelectedIdea] = useState<IdeaInboxItem | null>(null);
   const [aiFlow, setAiFlow] = useState<Scene[]>([]);
   const [developerSquads, setDeveloperSquads] = useState<DeveloperSquad[]>([]);
   const [searchCode, setSearchCode] = useState<string>("");
   const [searchedSquad, setSearchedSquad] = useState<DeveloperSquad | null>(null);
-
+const [genreFilter, setGenreFilter] = useState<string>("All");
   // Initialize ideas from writer inbox
   useEffect(() => {
     if (user?.writer?.ideaInbox) {
       setIdeas(user.writer.ideaInbox);
+      console.log("ideas for inbox",ideas)
     }
   }, [user?.writer?.ideaInbox]);
 
@@ -58,6 +63,13 @@ export default function WriterDashboard() {
   useEffect(() => {
     fetchAllDeveloperSquads();
   }, []);
+
+  // Filter ideas by selected genre
+  useEffect(() => {
+    if (genreFilter === "All") setFilteredIdeas(ideas);
+    else setFilteredIdeas(ideas.filter((idea) => idea.genre === genreFilter));
+  }, [genreFilter, ideas]);
+
 
   // Approve / Discard
   const removeIdea = async (idea: IdeaInboxItem, setSelected: boolean) => {
@@ -149,6 +161,8 @@ export default function WriterDashboard() {
       console.error(err);
     }
   };
+    const genres = Array.from(new Set(ideas.map((i) => i.genre).filter(Boolean))) as string[];
+
 
   return (
     <div className="relative min-h-screen text-white overflow-hidden p-8 space-y-10">
@@ -192,27 +206,46 @@ export default function WriterDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Ideas Inbox */}
         <div className="border rounded-xl overflow-y-auto max-h-screen p-4 space-y-3 bg-black/60 border-purple-600/40">
-          <h2 className="font-semibold text-xl mb-2">Ideas Inbox</h2>
-          {ideas.length === 0 && <p className="text-gray-400">No ideas received.</p>}
-          {ideas.map((idea) => (
-            <Card key={idea.submittedAt} className="bg-black/50 border border-purple-600/30">
-              <CardHeader>
-                <p>{idea.idea}</p>
-              </CardHeader>
-              <CardContent className="flex justify-between mt-2 text-sm text-gray-300">
-                <span>{idea.performerName}</span>
-                <div className="flex gap-2">
-                  <Button className="bg-green-600 hover:bg-green-700" onClick={() => approveIdea(idea)}>
-                    Approve
-                  </Button>
-                  <Button className="bg-red-600 hover:bg-red-700" onClick={() => discardIdea(idea)}>
-                    Discard
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+  <div className="flex justify-between items-center mb-2">
+    <h2 className="font-semibold text-xl">Ideas Inbox</h2>
+
+    {/* Genre Filter */}
+    <Select value={genreFilter} onValueChange={setGenreFilter}>
+      <SelectTrigger className="w-40 bg-black/50 border-gray-600 text-white">
+        <SelectValue placeholder="Filter by genre" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="All">All</SelectItem>
+        {Array.from(new Set(ideas.map((i) => i.genre).filter(Boolean))).map((g) => (
+          <SelectItem key={g} value={g}>
+            {g}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  </div>
+
+  {(genreFilter === "All" ? ideas : ideas.filter((i) => i.genre === genreFilter)).map((idea) => (
+    <Card key={idea.submittedAt} className="bg-black/50 border border-purple-600/30">
+      <CardHeader>
+        <p>{idea.idea}</p>
+        {idea.genre && <span className="text-xs text-gray-400">Genre: {idea.genre}</span>}
+      </CardHeader>
+      <CardContent className="flex justify-between mt-2 text-sm text-gray-300">
+        <span>{idea.performerName}</span>
+        <div className="flex gap-2">
+          <Button className="bg-green-600 hover:bg-green-700" onClick={() => approveIdea(idea)}>
+            Approve
+          </Button>
+          <Button className="bg-red-600 hover:bg-red-700" onClick={() => discardIdea(idea)}>
+            Discard
+          </Button>
         </div>
+      </CardContent>
+    </Card>
+  ))}
+</div>
+
 
         {/* AI Expander */}
         <div className="border rounded-xl p-4 space-y-3 bg-black/60 border-blue-600/40">

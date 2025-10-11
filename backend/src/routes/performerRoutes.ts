@@ -1,6 +1,6 @@
 import express from "express";
 import { requireAuth } from "../middleware/authMiddleware";
-import { joinSquad,createSquad, getSquads, getSquadDetails, addIdea,searchIdeas ,searchWriter} from "../controllers/performerController";
+import { joinSquad,createSquad, getSquads, getSquadDetails, addIdea,searchIdeas ,searchWriter,handleDeleteIdea} from "../controllers/performerController";
 import { summarizeIdeas } from "../controllers/aiController";
 import { generateMindMapBySquad } from "../controllers/mindmapController";
 
@@ -15,4 +15,5 @@ router.post("/squads/:id/summarize", requireAuth, summarizeIdeas);
 router.post("/squads/:id/mindmap",requireAuth ,generateMindMapBySquad);
 router.post("/squads/search-ideas",requireAuth,searchIdeas)
 router.post("/squads/search-writer",requireAuth,searchWriter)
+router.delete("/squads/:squadId/idea/:ideaId",requireAuth,handleDeleteIdea)
 export default router;
