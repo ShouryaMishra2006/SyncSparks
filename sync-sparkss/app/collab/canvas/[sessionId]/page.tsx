@@ -666,6 +666,45 @@ export default function CollaborationCanvas() {
         </svg>
         <span className="text-sm font-medium">Load Latest Participants</span>
       </button>
+
+      {/* Connected Clients Panel - Right Side */}
+      <div className="fixed top-20 right-6 w-64 bg-black/90 backdrop-blur-sm border border-purple-600/40 rounded-lg shadow-xl z-40 max-h-[calc(100vh-200px)] overflow-hidden flex flex-col">
+        {/* Panel Header */}
+        <div className="px-4 py-3 bg-purple-900/30 border-b border-purple-600/30">
+          <h3 className="text-sm font-semibold text-purple-300 flex items-center gap-2">
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+              />
+            </svg>
+            Connected Users
+          </h3>
+        </div>
+
+        {/* Users List */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          {session?.participants?.map(
+            (p) => { 
+              return( 
+                <div key={p._id} className="bg-purple-900/20 px-3 py-2 rounded border border-purple-600/30 flex items-center gap-5">
+                  <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
+                    {p.name.charAt(0).toUpperCase()}
+                  </div> 
+                  <div className="w-8 h-8 flex items-center justify-center text-white font-semibold">{p.name}</div>
+                </div>
+              );
+            }
+          )}
+        </div>
+      </div>
     </div>
   );
 }
