@@ -9,9 +9,9 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/app/context/AuthContext";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { MapPin } from "lucide-react";
 
-
-// Dynamically import MindMapView (client-side only)
+import "leaflet/dist/leaflet.css";
 const MindMapView = dynamic(() => import("@/components/MindMap"), {
   ssr: false,
 });
@@ -56,27 +56,26 @@ type Squad = {
   aiMindMap?: { data: any; createdAt: string };
 };
 
-
 export default function SquadDashboard() {
   const params = useParams();
   const squadId = params?.squadId as string;
   const { user, loading, isAuthenticated } = useAuth();
-
+  const [map, setMap] = useState<L.Map | null>(null);
   const [squad, setSquad] = useState<Squad | null>(null);
   const [newIdea, setNewIdea] = useState("");
   const [writers, setWriters] = useState<Writer[]>([]);
   const [listening, setListening] = useState(false);
-  
+  const [leaflet, setLeaflet] = useState<any>(null);
   const [showMindMap, setShowMindMap] = useState(false);
+  const [showinputbutton, setshowinputbutton] = useState(false);
   const [mindMapData, setMindMapData] = useState<any>(null);
   const [aiResult, setAiResult] = useState<AiResult | null>(null);
   const [query, setQuery] = useState("");
-  const [writerid,setwriterid]=useState("");
+  const [writerid, setwriterid] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [ideas, setIdeas] = useState<Idea[]>([]);
 
-  // Voice input
   const startListening = () => {
     const SpeechRecognition =
       (window as any).SpeechRecognition ||
@@ -100,8 +99,28 @@ export default function SquadDashboard() {
 
     recognition.start();
   };
+  useEffect(() => {
+    if (!showinputbutton) return;
+    if (map) return;
 
-  // Fetch squad
+    (async () => {
+      const L = (await import("leaflet")).default;
+      setLeaflet(L);
+      const container = document.getElementById("map");
+      if (!container) return;
+
+      const newMap = L.map(container).setView([20.5937, 78.9629], 5);
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+      }).addTo(newMap);
+
+      setMap(newMap);
+
+      setTimeout(() => newMap.invalidateSize(), 300);
+    })();
+  }, [showinputbutton]);
+
   useEffect(() => {
     const fetchSquad = async () => {
       try {
@@ -120,8 +139,6 @@ export default function SquadDashboard() {
     };
     if (squadId) fetchSquad();
   }, [squadId]);
-
-  // Fetch writers
   useEffect(() => {
     const fetchWriters = async () => {
       try {
@@ -145,8 +162,6 @@ export default function SquadDashboard() {
         <p className="mb-4">You are not logged in.</p>
       </div>
     );
-
-  // Add new idea
   const handleAddIdea = async () => {
     if (!newIdea.trim() || !squad) return;
     try {
@@ -169,8 +184,6 @@ export default function SquadDashboard() {
       console.error(err);
     }
   };
-
-  // Search ideas
   const handleSearch = async () => {
     try {
       const params = new URLSearchParams();
@@ -202,8 +215,6 @@ export default function SquadDashboard() {
       console.error("Search error:", error);
     }
   };
-
-  // Summarize AI
   const handleSummarize = async () => {
     if (!squad) return;
     const countStr = prompt("How many last ideas do you want to summarize?");
@@ -226,10 +237,9 @@ export default function SquadDashboard() {
       );
       const data = await res.json();
       if (res.ok) {
-        console.log(`summary: ${data.summary}`)
+        console.log(`summary: ${data.summary}`);
         setAiResult(data.summary);
         setShowMindMap(false);
-
       } else {
         alert(data.message || "Failed to summarize");
       }
@@ -240,22 +250,22 @@ export default function SquadDashboard() {
 
   const handleMindMap = async () => {
     if (!squad) return;
-  
-    // 🧠 Ask user how many last ideas to include in the mind map
-    const countStr = prompt("How many last ideas do you want to generate the mind map from?");
+    const countStr = prompt(
+      "How many last ideas do you want to generate the mind map from?"
+    );
     if (!countStr) return;
-  
+
     const count = parseInt(countStr);
     if (isNaN(count) || count <= 0) {
       alert("Please enter a valid number");
       return;
     }
-  
+
     const lastIdeas = squad.ideas.slice(-count).map((idea) => idea.text);
-  
+
     try {
       console.log(squad);
-      console.log("squad id:", squad._id)
+      console.log("squad id:", squad._id);
       const res = await fetch(
         `http://localhost:4000/api/performer/squads/${squad._id}/mindmap`,
         {
@@ -265,55 +275,49 @@ export default function SquadDashboard() {
           body: JSON.stringify({ ideas: lastIdeas }),
         }
       );
-  
+
       const data = await res.json();
-     console.log("data:" , data);
-     if (res.ok && data?.nodes && data?.edges) {
-      console.log("✅ Mind map data:", data);
-    
-      // Explicit types for nodes and edges
-      type BackendNode = {
-        id: string | number;
-        text: string;
-        explanation?: string;
-        color?: string;
-      };
-    
-      type BackendEdge = {
-        source: string | number;
-        target: string | number;
-      };
-    
-      // Safely convert backend nodes into React Flow nodes
-      const nodesWithPositions = (data.nodes as BackendNode[]).map(
-        (node: BackendNode, index: number) => ({
-          id: String(node.id),
-          position: { x: index * 150, y: index * 80 },
-          data: {
-            label: node.text || `Node ${index}`,
-            notes: node.explanation || "",
-            color: node.color || "blue",
-          },
-          type: "customNode", // your NodeWithNotes type
-        })
-      );
-    
-      const edgesFormatted = (data.edges as BackendEdge[]).map(
-        (edge: BackendEdge, index: number) => ({
-          id: `edge-${index}`,
-          source: String(edge.source),
-          target: String(edge.target),
-        })
-      );
-    
-      setMindMapData({
-        nodes: nodesWithPositions,
-        edges: edgesFormatted,
-      });
-    
-      setShowMindMap(true);
-    
-    
+      console.log("data:", data);
+      if (res.ok && data?.nodes && data?.edges) {
+        console.log("Mind map data:", data);
+        type BackendNode = {
+          id: string | number;
+          text: string;
+          explanation?: string;
+          color?: string;
+        };
+
+        type BackendEdge = {
+          source: string | number;
+          target: string | number;
+        };
+        const nodesWithPositions = (data.nodes as BackendNode[]).map(
+          (node: BackendNode, index: number) => ({
+            id: String(node.id),
+            position: { x: index * 150, y: index * 80 },
+            data: {
+              label: node.text || `Node ${index}`,
+              notes: node.explanation || "",
+              color: node.color || "blue",
+            },
+            type: "customNode",
+          })
+        );
+
+        const edgesFormatted = (data.edges as BackendEdge[]).map(
+          (edge: BackendEdge, index: number) => ({
+            id: `edge-${index}`,
+            source: String(edge.source),
+            target: String(edge.target),
+          })
+        );
+
+        setMindMapData({
+          nodes: nodesWithPositions,
+          edges: edgesFormatted,
+        });
+
+        setShowMindMap(true);
       } else {
         alert(data.message || "Failed to generate mind map");
       }
@@ -321,21 +325,14 @@ export default function SquadDashboard() {
       console.error("Error generating mind map:", err);
     }
   };
-  
 
-  
-
-  const handleExpand = async () => {
-    
-
-    
-  };
+  const handleExpand = async () => {};
   const handleSearchwriter = async () => {
-  try {
-    if (!writerid) {
-      alert("Please enter a Writer ID to search.");
-      return;
-    }
+    try {
+      if (!writerid) {
+        alert("Please enter a Writer ID to search.");
+        return;
+      }
 
       const params = new URLSearchParams();
       if (writerid) params.append("writerid", writerid);
@@ -349,23 +346,22 @@ export default function SquadDashboard() {
         }
       );
 
-    const data = await res.json();
-    console.log(data)
-    if (!res.ok) {
-      console.error("Error fetching writer:", data.message);
-      alert(data.message || "Writer not found");
-      return;
+      const data = await res.json();
+      console.log(data);
+      if (!res.ok) {
+        console.error("Error fetching writer:", data.message);
+        alert(data.message || "Writer not found");
+        return;
+      }
+      const w = data.writer;
+      const warr = [];
+      warr.push(w);
+      setWriters(warr);
+    } catch (error) {
+      console.error("Search error:", error);
+      alert("Something went wrong while searching for the writer.");
     }
-    const w=data.writer
-    const warr=[]
-    warr.push(w)
-    setWriters(warr);
-    
-  } catch (error) {
-    console.error("Search error:", error);
-    alert("Something went wrong while searching for the writer.");
-  }
-};
+  };
 
   const handleShare = (writerId: string) => {
     if (!aiResult) {
@@ -374,7 +370,7 @@ export default function SquadDashboard() {
     }
 
     const payload = {
-      writerId:writerId,
+      writerId: writerId,
       aiResult: {
         title: aiResult.title,
         text: aiResult.text,
@@ -391,7 +387,7 @@ export default function SquadDashboard() {
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
-          console.log("performer shared", data)
+          console.log("performer shared", data);
           alert(`AI result shared successfully`);
         } else {
           alert(`Failed to share AI result: ${data.message || "Error"}`);
@@ -402,40 +398,83 @@ export default function SquadDashboard() {
         alert("Error sharing AI result.");
       });
   };
-
-  const handleDeleteIdea = async (ideaId: string) => {
-  if (!squad) return;
-
-  const confirmDelete = confirm("Are you sure you want to delete this idea?");
-  if (!confirmDelete) return;
-
-  try {
-    const res = await fetch(
-      `http://localhost:4000/api/performer/squads/${squad._id}/idea/${ideaId}`,
-      {
-        method: "DELETE",
-        credentials: "include",
-      }
+  const handleFetchWriters = async () => {
+    const radius = Number(
+      (document.getElementById("radiusInput") as HTMLInputElement).value
     );
-
-    const data = await res.json();
-    if (res.ok) {
-      // Remove idea locally
-      setIdeas((prev) => prev.filter((idea) => idea._id !== ideaId));
-      setSquad({
-        ...squad,
-        ideas: squad.ideas.filter((idea) => idea._id !== ideaId),
-      });
-      alert("Idea deleted successfully");
-    } else {
-      alert(data.message || "Failed to delete idea");
+    if (!radius) {
+      alert("Please enter radius");
+      return;
     }
-  } catch (err) {
-    console.error("Error deleting idea:", err);
-    alert("Error deleting idea");
-  }
-};
+    try {
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        if (!leaflet || !map) return;
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const response = await fetch(
+          `http://localhost:4000/api/writer/nearby?lat=${lat}&lng=${lng}&r=${radius}`,
+          {
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+          }
+        );
+        const writers = await response.json();
+        console.log(writers)
+        map.eachLayer((layer: any) => {
+          if (layer.options?.pane === "markerPane") {
+            map.removeLayer(layer);
+          }
+        });
+        writers.forEach((w: any) => {
+          console.log(w.writer.location.coordinates[1])
+          console.log(w.writer.writerId)
+          leaflet
+            .marker([w.writer.location.coordinates[1], w.writer.location.coordinates[0]],{title:w.writer.writerId})
+            .addTo(map)
+            .bindPopup(w.writer.writerId);
+        });
+        map.setView([lat, lng], 10);
+        console.log(lat)
+        leaflet
+          .marker([lat, lng], { title: "You" })
+          .addTo(map)
+          .bindPopup("Your Location");
+      });
+    } catch (e) {
+      console.log(e);
+    }
+  };
+  const handleDeleteIdea = async (ideaId: string) => {
+    if (!squad) return;
 
+    const confirmDelete = confirm("Are you sure you want to delete this idea?");
+    if (!confirmDelete) return;
+
+    try {
+      const res = await fetch(
+        `http://localhost:4000/api/performer/squads/${squad._id}/idea/${ideaId}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        }
+      );
+
+      const data = await res.json();
+      if (res.ok) {
+        setIdeas((prev) => prev.filter((idea) => idea._id !== ideaId));
+        setSquad({
+          ...squad,
+          ideas: squad.ideas.filter((idea) => idea._id !== ideaId),
+        });
+        alert("Idea deleted successfully");
+      } else {
+        alert(data.message || "Failed to delete idea");
+      }
+    } catch (err) {
+      console.error("Error deleting idea:", err);
+      alert("Error deleting idea");
+    }
+  };
 
   return (
     <div className="min-h-screen text-white p-6 relative">
@@ -541,14 +580,13 @@ export default function SquadDashboard() {
                     {idea.createdBy?.nickname || idea.createdBy?.name} ·{" "}
                     {new Date(idea.createdAt).toLocaleString()}
                   </p>
-                   <Button
-          onClick={() => handleDeleteIdea(idea._id)}
-          className="bg-red-600 hover:bg-red-700 text-xs h-6 px-2"
-        >
-          Delete
-        </Button>
+                  <Button
+                    onClick={() => handleDeleteIdea(idea._id)}
+                    className="bg-red-600 hover:bg-red-700 text-xs h-6 px-2"
+                  >
+                    Delete
+                  </Button>
                 </div>
-                 
               ))
             )}
           </div>
@@ -623,28 +661,22 @@ export default function SquadDashboard() {
             ) : (
               <p className="text-gray-400">No AI output yet</p>
             )}
-      
-     
-      {showMindMap && mindMapData && squad && (
-  <motion.div
-    className="rounded-xl border border-indigo-600/40 overflow-hidden mt-4"
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-  >
-    <MindMapView
-    
-      mapId={squad._id}
-      initialData={{
-        nodes: mindMapData?.nodes || [],
-        edges: mindMapData?.edges || [],
-      }}
-    />
-  </motion.div>
-)}
 
-
-
-
+            {showMindMap && mindMapData && squad && (
+              <motion.div
+                className="rounded-xl border border-indigo-600/40 overflow-hidden mt-4"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                <MindMapView
+                  mapId={squad._id}
+                  initialData={{
+                    nodes: mindMapData?.nodes || [],
+                    edges: mindMapData?.edges || [],
+                  }}
+                />
+              </motion.div>
+            )}
           </div>
         </motion.div>
         {/* Section 3: Writers */}
@@ -653,8 +685,40 @@ export default function SquadDashboard() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
-          <h3 className="text-xl font-semibold mb-3">✍️ Writers</h3>
-           <div className="flex flex-wrap gap-2 mb-4">
+          <div className="flex flex-row justify-between my-2">
+            <h3 className="text-xl font-semibold mb-3"> Writers</h3>
+            <Button
+              onClick={() => setshowinputbutton(true)}
+              className="bg-blue-600 hover:bg-blue-700 flex items-center"
+            >
+              <MapPin />
+              See Nearby Writers
+            </Button>
+            {showinputbutton && (
+              <div className="flex flex-col gap-3 items-center">
+                <input
+                  id="radiusInput"
+                  type="number"
+                  min="1"
+                  placeholder="Radius (km)"
+                  className="px-3 py-2 w-40 border rounded-lg shadow"
+                />
+
+                <button
+                  id="findWritersBtn"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700"
+                  onClick={handleFetchWriters}
+                >
+                  Find Writers
+                </button>
+                <div
+                  id="map"
+                  className="w-full h-80 rounded-lg border border-purple-600"
+                ></div>
+              </div>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2 mb-4">
             <Input
               placeholder="Search writer (Enter writer's id)"
               value={writerid}
@@ -696,4 +760,3 @@ export default function SquadDashboard() {
     </div>
   );
 }
-

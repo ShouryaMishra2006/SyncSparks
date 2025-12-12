@@ -80,7 +80,7 @@ export const addIdeaInbox = async (req: Request, res: Response) => {
       });
     }
     const result = await genreClassifier(aiResult); // 🎯 Auto classify here
-    const genre= result.genre
+    const genre = result.genre;
     console.log("genre", genre);
     const writerUser = await User.findOne({ "writer.writerId": writerId });
     if (!writerUser) {
@@ -106,7 +106,7 @@ export const addIdeaInbox = async (req: Request, res: Response) => {
       genre,
     };
     writerUser.writer?.ideaInbox.push(newIdea);
-      console.log("writer user", writerUser)
+    console.log("writer user", writerUser);
     await writerUser.save();
 
     return res.status(200).json({
@@ -143,7 +143,6 @@ export const removeIdea = async (req: Request, res: Response) => {
     return res.status(200).json({
       success: true,
       message: "Idea removed successfully",
-      
     });
   } catch (err) {
     console.error(err);
@@ -151,5 +150,59 @@ export const removeIdea = async (req: Request, res: Response) => {
       success: false,
       message: "Server error",
     });
+  }
+};
+export const updatelocation = async (req: Request, res: Response) => {
+  try {
+    const { lat, lng } = req.body;
+    if (lat == null || lng == null) {
+      return res.status(400).json({ error: "Latitude & longitude required" });
+    }
+    const user = req.user as AuthUser;
+    const userId = user?._id;
+    await User.findByIdAndUpdate(userId, {
+      "writer.location": {
+        type: "Point",
+        coordinates: [lng, lat],
+      },
+    });
+    res.status(200).json({ message: "Location updated successfully" });
+  } catch (e) {
+    console.log(e);
+    return res.status(500).json({ message: "Server Error" });
+  }
+};
+export const getNearbyWriters = async (req: Request, res: Response) => {
+  try {
+    const { lat, lng, r } = req.query;
+
+    const latitude = parseFloat(lat as string);
+    const longitude = parseFloat(lng as string);
+    const radius = parseFloat(r as string);
+
+    if (isNaN(latitude) || isNaN(longitude) || isNaN(radius)) {
+      return res
+        .status(400)
+        .json({ message: "lat, lng, and r must be numbers" });
+    }
+
+    const radiusInMeters = radius * 1000;
+    console.log("going to process")
+    const writers = await User.find({
+      "writer.location": {
+        $near: {
+          $geometry: {
+            type: "Point",
+            coordinates: [longitude, latitude],
+          },
+          $maxDistance: radiusInMeters,
+        },
+      },
+    });
+
+    return res.json(Array.isArray(writers) ? writers : []);
+  } catch (e) {
+    console.log(e);
+    return res.status(500).json({ message: "Server Error" });
   }
 };

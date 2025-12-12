@@ -257,7 +257,7 @@ if(s.mediaUrl){d.innerHTML += '<img src="'+s.mediaUrl+'" style="max-width:100%"/
           />
 
           <div className="flex flex-wrap gap-2 mt-3">
-            <Button
+            {/* <Button
               onClick={() => {
                 setActiveButton("image");
                 generateImageFromScene();
@@ -265,7 +265,7 @@ if(s.mediaUrl){d.innerHTML += '<img src="'+s.mediaUrl+'" style="max-width:100%"/
               className={activeButton === "image" ? "text-white bg-black" : ""}
             >
               Generate Image
-            </Button>
+            </Button> */}
 
             <Button
               onClick={() => {

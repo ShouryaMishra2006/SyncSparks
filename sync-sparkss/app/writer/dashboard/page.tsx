@@ -4,7 +4,14 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MapPin } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { motion } from "framer-motion";
 import { useAuth } from "@/app/context/AuthContext";
 
@@ -29,25 +36,24 @@ interface DeveloperSquad {
 
 export default function WriterDashboard() {
   const { user } = useAuth();
-  
-console.log(user)
+
+  console.log(user);
   const [ideas, setIdeas] = useState<IdeaInboxItem[]>([]);
   const [filteredIdeas, setFilteredIdeas] = useState<IdeaInboxItem[]>([]);
   const [selectedIdea, setSelectedIdea] = useState<IdeaInboxItem | null>(null);
   const [aiFlow, setAiFlow] = useState<Scene[]>([]);
   const [developerSquads, setDeveloperSquads] = useState<DeveloperSquad[]>([]);
   const [searchCode, setSearchCode] = useState<string>("");
-  const [searchedSquad, setSearchedSquad] = useState<DeveloperSquad | null>(null);
-const [genreFilter, setGenreFilter] = useState<string>("All");
-  // Initialize ideas from writer inbox
+  const [searchedSquad, setSearchedSquad] = useState<DeveloperSquad | null>(
+    null
+  );
+  const [genreFilter, setGenreFilter] = useState<string>("All");
   useEffect(() => {
     if (user?.writer?.ideaInbox) {
       setIdeas(user.writer.ideaInbox);
-      console.log("ideas for inbox",ideas)
+      console.log("ideas for inbox", ideas);
     }
   }, [user?.writer?.ideaInbox]);
-
-  // Fetch all developer squads
   const fetchAllDeveloperSquads = async () => {
     try {
       const res = await fetch("http://localhost:4000/api/developer/squads", {
@@ -63,15 +69,11 @@ const [genreFilter, setGenreFilter] = useState<string>("All");
   useEffect(() => {
     fetchAllDeveloperSquads();
   }, []);
-
-  // Filter ideas by selected genre
   useEffect(() => {
     if (genreFilter === "All") setFilteredIdeas(ideas);
     else setFilteredIdeas(ideas.filter((idea) => idea.genre === genreFilter));
   }, [genreFilter, ideas]);
 
-
-  // Approve / Discard
   const removeIdea = async (idea: IdeaInboxItem, setSelected: boolean) => {
     try {
       const res = await fetch("http://localhost:4000/api/writer/remove-idea", {
@@ -117,7 +119,32 @@ const [genreFilter, setGenreFilter] = useState<string>("All");
       alert("Error expanding idea with AI");
     }
   };
+  const updateLocation = () => {
 
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        console.log(latitude)
+        console.log(longitude)
+        const res=await fetch("http://localhost:4000/api/writer/update-location", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials :"include",
+          body: JSON.stringify({
+            lat: latitude,
+            lng: longitude,
+          }),
+        });
+        if(res.status==200){
+          alert("Location updated!");
+        }
+      },
+      (err) => {
+        alert("Unable to fetch location.");
+        console.error(err);
+      }
+    );
+  };
   const updateAiFlow = (index: number, value: string) => {
     const newFlow = [...aiFlow];
     newFlow[index].description = value;
@@ -131,7 +158,11 @@ const [genreFilter, setGenreFilter] = useState<string>("All");
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ squadId: devId, idea: selectedIdea.idea, aiFlow }),
+        body: JSON.stringify({
+          squadId: devId,
+          idea: selectedIdea.idea,
+          aiFlow,
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -161,8 +192,9 @@ const [genreFilter, setGenreFilter] = useState<string>("All");
       console.error(err);
     }
   };
-    const genres = Array.from(new Set(ideas.map((i) => i.genre).filter(Boolean))) as string[];
-
+  const genres = Array.from(
+    new Set(ideas.map((i) => i.genre).filter(Boolean))
+  ) as string[];
 
   return (
     <div className="relative min-h-screen text-white overflow-hidden p-8 space-y-10">
@@ -188,7 +220,11 @@ const [genreFilter, setGenreFilter] = useState<string>("All");
               x: [0, Math.random() * 200 - 100, 0],
               y: [0, Math.random() * 200 - 100, 0],
             }}
-            transition={{ repeat: Infinity, duration: 12 + i * 2, ease: "easeInOut" }}
+            transition={{
+              repeat: Infinity,
+              duration: 12 + i * 2,
+              ease: "easeInOut",
+            }}
           />
         ))}
       </motion.div>
@@ -196,6 +232,13 @@ const [genreFilter, setGenreFilter] = useState<string>("All");
       {/* Header */}
       <div className="flex justify-between items-center border-b pb-4">
         <h1 className="text-3xl font-bold">✍ Writer Dashboard</h1>
+        <button
+          onClick={updateLocation}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow transition disabled:opacity-50"
+        >
+          <MapPin className="h-5 w-5" />
+          Update My Location
+        </button>
         <div className="text-right">
           <p className="text-lg">{user?.name}</p>
           <p className="text-sm text-gray-400">ID: {user?.writer?.writerId}</p>
@@ -206,58 +249,83 @@ const [genreFilter, setGenreFilter] = useState<string>("All");
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Ideas Inbox */}
         <div className="border rounded-xl overflow-y-auto max-h-screen p-4 space-y-3 bg-black/60 border-purple-600/40">
-  <div className="flex justify-between items-center mb-2">
-    <h2 className="font-semibold text-xl">Ideas Inbox</h2>
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="font-semibold text-xl">Ideas Inbox</h2>
 
-    {/* Genre Filter */}
-    <Select value={genreFilter} onValueChange={setGenreFilter}>
-      <SelectTrigger className="w-40 bg-black/50 border-gray-600 text-white">
-        <SelectValue placeholder="Filter by genre" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="All">All</SelectItem>
-        {Array.from(new Set(ideas.map((i) => i.genre).filter(Boolean))).map((g) => (
-          <SelectItem key={g} value={g}>
-            {g}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  </div>
+            {/* Genre Filter */}
+            <Select value={genreFilter} onValueChange={setGenreFilter}>
+              <SelectTrigger className="w-40 bg-black/50 border-gray-600 text-white">
+                <SelectValue placeholder="Filter by genre" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All</SelectItem>
+                {Array.from(
+                  new Set(ideas.map((i) => i.genre).filter(Boolean))
+                ).map((g) => (
+                  <SelectItem key={g} value={g}>
+                    {g}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-  {(genreFilter === "All" ? ideas : ideas.filter((i) => i.genre === genreFilter)).map((idea) => (
-    <Card key={idea.submittedAt} className="bg-black/50 border border-purple-600/30">
-      <CardHeader>
-        <p>{idea.idea}</p>
-        {idea.genre && <span className="text-xs text-gray-400">Genre: {idea.genre}</span>}
-      </CardHeader>
-      <CardContent className="flex justify-between mt-2 text-sm text-gray-300">
-        <span>{idea.performerName}</span>
-        <div className="flex gap-2">
-          <Button className="bg-green-600 hover:bg-green-700" onClick={() => approveIdea(idea)}>
-            Approve
-          </Button>
-          <Button className="bg-red-600 hover:bg-red-700" onClick={() => discardIdea(idea)}>
-            Discard
-          </Button>
+          {(genreFilter === "All"
+            ? ideas
+            : ideas.filter((i) => i.genre === genreFilter)
+          ).map((idea) => (
+            <Card
+              key={idea.submittedAt}
+              className="bg-black/50 border border-purple-600/30"
+            >
+              <CardHeader>
+                <p>{idea.idea}</p>
+                {idea.genre && (
+                  <span className="text-xs text-gray-400">
+                    Genre: {idea.genre}
+                  </span>
+                )}
+              </CardHeader>
+              <CardContent className="flex justify-between mt-2 text-sm text-gray-300">
+                <span>{idea.performerName}</span>
+                <div className="flex gap-2">
+                  <Button
+                    className="bg-green-600 hover:bg-green-700"
+                    onClick={() => approveIdea(idea)}
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    className="bg-red-600 hover:bg-red-700"
+                    onClick={() => discardIdea(idea)}
+                  >
+                    Discard
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
-      </CardContent>
-    </Card>
-  ))}
-</div>
-
 
         {/* AI Expander */}
         <div className="border rounded-xl p-4 space-y-3 bg-black/60 border-blue-600/40">
           <h2 className="font-semibold text-xl mb-2">AI Expander</h2>
           {selectedIdea ? (
             <>
-              <p className="mb-2 font-medium">Selected Idea: {selectedIdea.idea}</p>
-              <Button className="bg-blue-600 hover:bg-blue-700 mb-4" onClick={expandWithAI}>
+              <p className="mb-2 font-medium">
+                Selected Idea: {selectedIdea.idea}
+              </p>
+              <Button
+                className="bg-blue-600 hover:bg-blue-700 mb-4"
+                onClick={expandWithAI}
+              >
                 Expand with AI
               </Button>
               {aiFlow.map((scene, index) => (
-                <Card key={index} className="bg-black/50 border border-blue-600/30">
+                <Card
+                  key={index}
+                  className="bg-black/50 border border-blue-600/30"
+                >
                   <CardHeader>
                     <CardTitle>{scene.scene}</CardTitle>
                   </CardHeader>
@@ -272,7 +340,9 @@ const [genreFilter, setGenreFilter] = useState<string>("All");
               ))}
             </>
           ) : (
-            <p className="text-gray-400">Approve an idea to start AI expansion.</p>
+            <p className="text-gray-400">
+              Approve an idea to start AI expansion.
+            </p>
           )}
         </div>
 
@@ -289,19 +359,27 @@ const [genreFilter, setGenreFilter] = useState<string>("All");
               value={searchCode}
               onChange={(e) => setSearchCode(e.target.value)}
             />
-            <Button onClick={searchByInviteCode} className="bg-indigo-600 hover:bg-indigo-700">
+            <Button
+              onClick={searchByInviteCode}
+              className="bg-indigo-600 hover:bg-indigo-700"
+            >
               Search
             </Button>
           </div>
 
           {/* Display searched squad if exists, else show all */}
           {(searchedSquad ? [searchedSquad] : developerSquads).map((dev) => (
-            <Card key={dev._id} className="bg-black/50 border border-indigo-600/30">
+            <Card
+              key={dev._id}
+              className="bg-black/50 border border-indigo-600/30"
+            >
               <CardHeader>
                 <CardTitle>{dev.name}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-gray-400">Invite Code: {dev.inviteCode}</p>
+                <p className="text-sm text-gray-400">
+                  Invite Code: {dev.inviteCode}
+                </p>
                 <Button
                   className="bg-indigo-600 hover:bg-indigo-700 w-full my-3"
                   disabled={!selectedIdea}

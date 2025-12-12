@@ -43,6 +43,10 @@ const writerExtensionSchema = new mongoose.Schema({
       },
     },
   ],
+  location: {
+    type: { type: String, enum: ['Point'], required: true },//part of GeoJSON specification for mongodb GeoJSON queries $GeoWithin $Near etc
+    coordinates: { type: [Number], required: true } 
+  }
 });
 const developerExtensionSchema = new mongoose.Schema({
   squadsJoined: [
@@ -70,4 +74,5 @@ const userSchema = new mongoose.Schema({
   developer: developerExtensionSchema,
 })
 userSchema.index({ "writer.writerId": 1 }, { unique: true, sparse: true });
+userSchema.index({ "writer.location": "2dsphere" });
 export default mongoose.model("User", userSchema)

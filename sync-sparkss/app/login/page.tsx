@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Link from "next/link"
 import { motion } from "framer-motion"
-
+import Image from "next/image"
+import { AuroraBackground } from "@/components/ui/aurora-background"
 export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [role, setRole] = useState("performer")
@@ -56,34 +57,26 @@ export default function LoginPage() {
 
   return (
     <div className="relative min-h-screen flex flex-col bg-black text-white">
-      {/* Background */}
-      <motion.div
-        className="absolute inset-0 z-0"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 2 }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-black to-blue-900 opacity-60" />
-        <motion.div
-          className="absolute w-[800px] h-[800px] rounded-full bg-blue-600 blur-3xl opacity-20"
-          animate={{
-            x: [0, 200, -200, 0],
-            y: [0, -200, 200, 0],
-          }}
-          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-        />
-      </motion.div>
-
       {/* Header */}
-      <header className="z-10 w-full px-6 py-4 flex justify-between items-center backdrop-blur-sm">
-        <div className="flex items-center space-x-2">
-          <span className="font-bold text-xl">🎭 SyncSparks</span>
-        </div>
-        <nav className="hidden md:flex space-x-6">
-          <Link href="/">Home</Link>
-          <Link href="/signup">Signup</Link>
-        </nav>
-      </header>
+      <AuroraBackground>
+      <header className="sticky top-0 z-50 w-full px-6 py-4 flex justify-between items-center backdrop-blur-sm bg-white/30 text-gray-200 
+            ">
+                    <div className="flex items-center space-x-2">
+                      <Image
+                      src="/logo.png"   
+                      alt="SyncSparks Logo"
+                      width={35}
+                      height={35}
+                    />
+                      <span className="font-bold text-xl text-gray-200">SyncSparks</span>
+                    </div>
+                    <nav className="hidden md:flex space-x-6">
+                      <Link href="/" className="py-2">Home</Link>
+                      <Link href="/signup" className="px-4 py-2 font-semibold bg-[#9F4FB0] text-white rounded-lg hover:bg-[#F997C8] transition-colors shadow-md">
+                        SignUp
+                      </Link>
+                    </nav>
+                  </header>
 
       {/* Main Content */}
       <main className="z-10 flex flex-1 items-center justify-center px-6 py-20">
@@ -121,7 +114,7 @@ export default function LoginPage() {
 
               <Button
                 type="submit"
-                className="w-full bg-purple-600 hover:bg-purple-700"
+                className="w-full bg-[#9F4FB0] hover:bg-purple-700"
                 disabled={loading}
               >
                 {loading ? "Logging in..." : "Login with Email"}
@@ -140,6 +133,7 @@ export default function LoginPage() {
           </CardContent>
         </Card>
       </main>
+      </AuroraBackground>
     </div>
   )
 }

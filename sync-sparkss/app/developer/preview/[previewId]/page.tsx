@@ -19,6 +19,7 @@ export default function PreviewViewer() {
       const res = await fetch(`http://localhost:4000/api/developer/preview/${previewId}`, { credentials: "include" });
       const data = await res.json();
       if (data.success) {
+        console.log(data)
         setMeta(data.preview);
         setCode(data.preview.code || "");
         setRunSrc(data.preview.deployedPreviewUrl || `/previews/${previewId}/index.html`);
@@ -43,10 +44,10 @@ export default function PreviewViewer() {
         </div>
 
         <div>
-          <h2 className="font-semibold mb-2">Run</h2>
-          <div className="mb-2">
+          {/* <h2 className="font-semibold mb-2">Run</h2> */}
+          {/* <div className="mb-2">
             <Button onClick={() => setRunSrc(`/previews/${previewId}/index.html`)}>Load Preview</Button>
-          </div>
+          </div> */}
           {runSrc && <iframe src={runSrc} className="w-full h-[520px] border rounded" />}
         </div>
       </div>

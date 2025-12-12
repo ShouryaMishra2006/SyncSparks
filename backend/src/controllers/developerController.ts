@@ -375,6 +375,7 @@ export const getPreviewMeta = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: "Not found" });
 
     const reqDoc = (squad.requests as any)[0];
+    console.log(reqDoc)
     return res.status(200).json({
       success: true,
       preview: {
