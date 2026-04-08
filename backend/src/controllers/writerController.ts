@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import User from "../models/User";
 import crypto from "crypto";
 import { genreClassifier } from "../utils/genreClassifier";
+import { sendIdeaToWriter } from "../index";
 
 interface AuthUser {
   _id: string;
@@ -79,7 +80,8 @@ export const addIdeaInbox = async (req: Request, res: Response) => {
         message: "Writer ID and AI result are required.",
       });
     }
-    const result = await genreClassifier(aiResult); // 🎯 Auto classify here
+    console.log("adding idea to inbox");
+    const result = await genreClassifier(aiResult); //  Auto classify here
     const genre= result.genre
     console.log("genre", genre);
     const writerUser = await User.findOne({ "writer.writerId": writerId });
@@ -108,6 +110,8 @@ export const addIdeaInbox = async (req: Request, res: Response) => {
     writerUser.writer?.ideaInbox.push(newIdea);
       console.log("writer user", writerUser)
     await writerUser.save();
+
+    sendIdeaToWriter(writerId, newIdea);
 
     return res.status(200).json({
       success: true,

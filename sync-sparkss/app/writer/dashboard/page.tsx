@@ -30,7 +30,7 @@ interface DeveloperSquad {
 export default function WriterDashboard() {
   const { user } = useAuth();
   
-console.log(user)
+  console.log(user)
   const [ideas, setIdeas] = useState<IdeaInboxItem[]>([]);
   const [filteredIdeas, setFilteredIdeas] = useState<IdeaInboxItem[]>([]);
   const [selectedIdea, setSelectedIdea] = useState<IdeaInboxItem | null>(null);
@@ -38,7 +38,7 @@ console.log(user)
   const [developerSquads, setDeveloperSquads] = useState<DeveloperSquad[]>([]);
   const [searchCode, setSearchCode] = useState<string>("");
   const [searchedSquad, setSearchedSquad] = useState<DeveloperSquad | null>(null);
-const [genreFilter, setGenreFilter] = useState<string>("All");
+  const [genreFilter, setGenreFilter] = useState<string>("All");
   // Initialize ideas from writer inbox
   useEffect(() => {
     if (user?.writer?.ideaInbox) {
@@ -46,6 +46,63 @@ const [genreFilter, setGenreFilter] = useState<string>("All");
       console.log("ideas for inbox",ideas)
     }
   }, [user?.writer?.ideaInbox]);
+
+
+  // ===============================
+  //  WEBSOCKET (REAL-TIME)
+  // ===============================
+  useEffect(() => {
+    const writerId = user?.writer?.writerId;
+
+    if (!writerId) return;
+
+
+   // if (!user?.writer?.writerId || !user?._id || !user?.name) return;
+
+    const socket = new WebSocket(
+      `ws://localhost:4000/yjs?sessionId=writerInbox&userId=${user._id}&userName=${user.name}`
+    );
+
+    socket.onopen = () => {
+      console.log("✅ WS Connected");
+
+      socket.send(
+        JSON.stringify({
+          type: "register-writer",
+          writerId,
+        })
+      );
+    };
+
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        if (data.type === "new-idea") {
+          setIdeas((prev) => {
+            //  avoid duplicates
+            if (
+              prev.some(
+                (i) => i.submittedAt === data.data.submittedAt
+              )
+            ) {
+              return prev;
+            }
+            return [data.data, ...prev];
+          });
+        }
+      } catch {
+        // ignore YJS binary
+      }
+    };
+
+    socket.onclose = () => console.log("❌ WS Closed");
+    socket.onerror = (err) => console.error("WS Error:", err);
+
+    return () => socket.close();
+  }, [user]);
+
+
 
   // Fetch all developer squads
   const fetchAllDeveloperSquads = async () => {

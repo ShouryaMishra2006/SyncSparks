@@ -19,9 +19,6 @@ import { layoutElements } from "../lib/dagreLayout";
 import NodeWithNotes from "./NodeWithNotes";
 import { Button } from "@/components/ui/button";
 const { Download , Pencil} = require ("lucide-react");
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
-import EditableMindMap from "./EditableMindMap";
 
 
 const nodeTypes = { customNode: NodeWithNotes };

@@ -68,6 +68,37 @@ export function getConnectedUsers(sessionId: string) {
   }));
 }
 
+
+/* =========================================================
+    WRITER INBOX SYSTEM 
+========================================================= */
+
+// writerId → active sockets
+const writerConnections = new Map<string, Set<WebSocket>>();
+
+// 🔥 Send idea to writer in real-time
+export function sendIdeaToWriter(writerId: string, idea: any) {
+  const clients = writerConnections.get(writerId);
+  if (!clients) return;
+
+  const message = JSON.stringify({
+    type: "new-idea",
+    data: idea,
+  });
+
+  clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(message);
+    }
+  });
+}
+/* =========================================================
+    WEBSOCKET CONNECTION
+========================================================= */
+
+
+
+
 wss.on("connection", (ws, req) => {
   const url = new URL(req.url || "", `http://${req.headers.host}`);
   const sessionId = url.searchParams.get("sessionId");
@@ -125,6 +156,26 @@ wss.on("connection", (ws, req) => {
   ws.on("message", (message: Buffer) => {
     console.log("Message received: ", message);
     try {
+       //  TRY JSON FIRST (for inbox)
+      const parsed = JSON.parse(message.toString());
+
+      //  REGISTER WRITER
+      if (parsed.type === "register-writer") {
+        const { writerId } = parsed;
+
+        if (!writerConnections.has(writerId)) {
+          writerConnections.set(writerId, new Set());
+        }
+
+        writerConnections.get(writerId)!.add(ws);
+
+        console.log(`Writer ${writerId} connected for inbox`);
+        return;
+      }
+
+    } catch (err) {
+      //console.error("Failed to apply Y.js update:", err);
+      //NOT JSON → YJS UPDATE
       const uint8Array = new Uint8Array(message);
 
       console.log("converted uint8Array: ", uint8Array);
@@ -135,8 +186,6 @@ wss.on("connection", (ws, req) => {
           client.ws.send(message);
         }
       });
-    } catch (err) {
-      console.error("Failed to apply Y.js update:", err);
     }
   });
 
@@ -164,6 +213,16 @@ wss.on("connection", (ws, req) => {
         client.ws.send(leaveMessage);
       }
     });
+    // clean writer's connections
+    writerConnections.forEach((clients, writerId) => {
+      if (clients.has(ws)) {
+        clients.delete(ws);
+        if (clients.size === 0) {
+          writerConnections.delete(writerId);
+        }
+      }
+    });
+
 
     // Clean up if no clients left
     if (sessionClients.size === 0) {

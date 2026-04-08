@@ -30,7 +30,7 @@ export interface GenreClassificationResult {
 // ====================
 
 const gemini = new ChatGoogleGenerativeAI({
-  model: "gemini-2.0-flash",
+  model: "models/gemini-2.5-flash",
   apiKey: process.env.GOOGLE_API_KEY!,
   temperature: 0.3,
 });

@@ -60,7 +60,7 @@ ${keywords.join(", ")}
 `.trim();
 
     const llm = new ChatGoogleGenerativeAI({
-      model: "models/gemini-2.0-flash",
+      model: "models/gemini-2.5-flash",
       apiKey: process.env.GOOGLE_API_KEY,
       temperature: 0.2,
     });
