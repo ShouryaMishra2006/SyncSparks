@@ -12,7 +12,6 @@ Empowering creators to take an idea from imagination → script → scene → si
 ![SyncSparks ](https://github.com/ShouryaMishra2006/SyncSparks/blob/main/sync-sparkss/public/Screenshot%202026-07-04%20164029.png)
 ![SyncSparks ](https://github.com/ShouryaMishra2006/SyncSparks/blob/main/sync-sparkss/public/Screenshot%202026-07-04%20163821.png)
 
-
 # Vision
 
 Traditional creative workflows are often fragmented — communication lags, version conflicts, and scattered tools slow down innovation.
