@@ -65,7 +65,9 @@ ${formattedIdeas}
       rawText = response.content;
     } else if (Array.isArray(response.content)) {
       rawText = response.content
-        .map((part: any) => (typeof part === "string" ? part : part?.text || ""))
+        .map((part: any) =>
+          typeof part === "string" ? part : part?.text || "",
+        )
         .join(" ")
         .trim();
     } else {
@@ -110,7 +112,7 @@ ${formattedIdeas}
     squad.aiMindMap ??= { data: null, createdAt: undefined };
 
     await squad.save();
-    console.log(summaryObj)
+    console.log(summaryObj);
     return res.status(200).json({
       message: "Summarized successfully",
       summary: summaryObj,
@@ -122,16 +124,21 @@ ${formattedIdeas}
 };
 export const expandIdeaWithAI = async (req: Request, res: Response) => {
   try {
-    const { idea } = req.body; 
+    const { idea } = req.body;
     //const performer = (req as any).user;
-
+    const maxLength = 150;
     if (!idea.idea) {
       return res.status(400).json({
         success: false,
         message: "idea are required",
       });
     }
-    console.log("frontend requested this idea:",idea.idea);
+    const shortIdea =
+      idea.idea.length > maxLength
+        ? idea.idea.slice(0, maxLength).replace(/\s+\S*$/, "") + "..."
+        : idea.idea;
+    
+    console.log("frontend requested this idea:", idea.idea);
     const promptText = `
 You are a creative AI writer assistant.
 
@@ -144,11 +151,11 @@ Return valid JSON as an array like this:
   { "scene": "Scene 2", "description": "..." }
 ]
 
-Idea: ${idea.idea}
+Idea: ${shortIdea}
 `;
 
     const llm = new ChatGoogleGenerativeAI({
-      model: "models/gemini-2.0-flash",
+      model: "models/gemini-2.5-flash",
       apiKey: process.env.GOOGLE_API_KEY,
       temperature: 0.5,
     });
@@ -160,13 +167,15 @@ Idea: ${idea.idea}
 
     const finalPrompt = await prompt.format({ input: promptText });
     const response = await llm.invoke(finalPrompt);
-    console.log("response from ai:",response.content)
+    console.log("response from ai:", response.content);
     let rawText = "";
     if (typeof response.content === "string") {
       rawText = response.content;
     } else if (Array.isArray(response.content)) {
       rawText = response.content
-        .map((part: any) => (typeof part === "string" ? part : part?.text || ""))
+        .map((part: any) =>
+          typeof part === "string" ? part : part?.text || "",
+        )
         .join(" ")
         .trim();
     } else {
@@ -184,7 +193,6 @@ Idea: ${idea.idea}
     } catch (e) {
       console.error("Error parsing AI JSON:", e);
     }
-
 
     return res.status(200).json({
       success: true,

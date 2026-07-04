@@ -125,47 +125,7 @@ export default function DeveloperDashboardPage() {
               </Card>
             ))}
           </div>
-
-          {/* Latest Work Section */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Latest Work (Deployed)</h2>
-            {latest.length === 0 && (
-              <p className="text-gray-400">No deployed work yet.</p>
-            )}
-            {latest.map((r) => (
-              <Card key={r._id} className="bg-black/60 border-indigo-600/30">
-                <CardHeader>
-                  <CardTitle>{r.writerName}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-300 mb-2">{r.idea}</p>
-                  {r.previewId ? (
-                    <Link
-                      href={`/developer/preview/${r.previewId}`}
-                      className="text-indigo-400 block hover:underline"
-                    >
-                      Open Preview & Code
-                    </Link>
-                  ) : r.deployedPreviewUrl ? (
-                    <a
-                      className="text-indigo-400 block hover:underline"
-                      href={r.deployedPreviewUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Open Preview
-                    </a>
-                  ) : null}
-
-                  {r.deployedAt && (
-                    <p className="text-sm text-gray-400 mt-1">
-                      Deployed: {new Date(r.deployedAt).toLocaleString()}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          
         </div>
 
         <Prompt2DWorkspace />

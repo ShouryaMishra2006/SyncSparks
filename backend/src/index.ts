@@ -12,263 +12,287 @@ import writerRoutes from "./routes/writerRoutes";
 import collaborationRoutes from "./routes/collaborationRoutes";
 import developerRoutes from "./routes/developerRoutes";
 import "./config/passport";
+
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import * as Y from "yjs";
 import path from "path";
+
 connectDB();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+  })
+);
 
-// Middleware
-app.use(cors({ origin: "http://localhost:3000", credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 app.use(passport.initialize());
 
-// Routes
-app.get("/", (req, res) => {
-  res.json({ message: "Backend API running" });
+app.get("/", (_, res) => {
+  res.json({
+    message: "Backend API running",
+  });
 });
-app.use('/previews', express.static(path.join(process.cwd(), 'previews')));
+
+app.use(
+  "/previews",
+  express.static(path.join(process.cwd(), "previews"))
+);
+
 app.use("/api/auth", authRoutes);
 app.use("/api/performer", performerRoutes);
 app.use("/api/writer", writerRoutes);
 app.use("/api/collab", collaborationRoutes);
 app.use("/api/developer", developerRoutes);
-// Create a single HTTP server for both Express and WebSocket
+
 const server = createServer(app);
-
-// WebSocket server attached to the same HTTP server
-const wss = new WebSocketServer({ server, path: "/yjs" });
-
-// Store Y.js documents for each session
+const yjsWss = new WebSocketServer({
+  server,
+  path: "/yjs",
+});
+const writerWss = new WebSocketServer({
+  server,
+  path: "/writer",
+});
 const docs = new Map<string, Y.Doc>();
 
-// Track connected clients per session
 interface ClientInfo {
-  ws: any;
+  ws: WebSocket;
   userId: string;
   userName: string;
 }
 
 const sessions = new Map<string, Set<ClientInfo>>();
-
-// Export function to get connected users for a session
 export function getConnectedUsers(sessionId: string) {
-  const sessionClients = sessions.get(sessionId);
-  if (!sessionClients) {
+  const clients = sessions.get(sessionId);
+
+  if (!clients) {
     return [];
   }
 
-  return Array.from(sessionClients).map((client) => ({
+  return Array.from(clients).map((client) => ({
     userId: client.userId,
     userName: client.userName,
   }));
 }
 
+const writerConnections = new Map<
+  string,
+  Set<WebSocket>
+>();
 
-/* =========================================================
-    WRITER INBOX SYSTEM 
-========================================================= */
+export function sendIdeaToWriter(
+  writerId: string,
+  idea: any
+) {
+  const sockets = writerConnections.get(writerId);
 
-// writerId → active sockets
-const writerConnections = new Map<string, Set<WebSocket>>();
-
-// 🔥 Send idea to writer in real-time
-export function sendIdeaToWriter(writerId: string, idea: any) {
-  const clients = writerConnections.get(writerId);
-  if (!clients) return;
+  if (!sockets) return;
 
   const message = JSON.stringify({
     type: "new-idea",
     data: idea,
   });
 
-  clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(message);
+  sockets.forEach((socket) => {
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(message);
     }
   });
 }
-/* =========================================================
-    WEBSOCKET CONNECTION
-========================================================= */
+yjsWss.on("connection", (ws, req) => {
+  const url = new URL(
+    req.url || "",
+    `http://${req.headers.host}`
+  );
 
-
-
-
-wss.on("connection", (ws, req) => {
-  const url = new URL(req.url || "", `http://${req.headers.host}`);
   const sessionId = url.searchParams.get("sessionId");
   const userId = url.searchParams.get("userId");
   const userName = url.searchParams.get("userName");
 
   if (!sessionId || !userId || !userName) {
-    console.log("Missing required parameters, closing connection");
+    console.log("Invalid Yjs connection.");
     ws.close();
     return;
   }
 
   console.log(
-    `Client ${userName} (${userId}) connected to session: ${sessionId}`
+    `Yjs Client ${userName}/${userId} connected to ${sessionId}`
   );
 
-  // Get or create Y.js document for this session
   if (!docs.has(sessionId)) {
     docs.set(sessionId, new Y.Doc());
   }
 
   const doc = docs.get(sessionId)!;
 
-  // Track client in session
   if (!sessions.has(sessionId)) {
     sessions.set(sessionId, new Set());
   }
+
   const sessionClients = sessions.get(sessionId)!;
-  const clientInfo: ClientInfo = { ws, userId, userName };
+
+  const clientInfo: ClientInfo = {
+    ws,
+    userId,
+    userName,
+  };
+
   sessionClients.add(clientInfo);
 
-  // Send current Y.js state to new client
   const state = Y.encodeStateAsUpdate(doc);
+
   ws.send(state);
 
-  // Broadcast user joined event to all clients in this session
-  const joinMessage = JSON.stringify({
-    type: "user-joined",
-    data: {
-      userId,
-      userName,
-      participantCount: sessionClients.size,
-      timestamp: Date.now(),
-    },
-  });
-
-  sessionClients.forEach((client) => {
-    if (client.ws.readyState === 1) {
-      // WebSocket.OPEN
-      client.ws.send(joinMessage);
-    }
-  });
-
-  // Listen for updates from this client
   ws.on("message", (message: Buffer) => {
-    console.log("Message received: ", message);
     try {
-       //  TRY JSON FIRST (for inbox)
-      const parsed = JSON.parse(message.toString());
+      const update = new Uint8Array(message);
 
-      //  REGISTER WRITER
-      if (parsed.type === "register-writer") {
-        const { writerId } = parsed;
-
-        if (!writerConnections.has(writerId)) {
-          writerConnections.set(writerId, new Set());
-        }
-
-        writerConnections.get(writerId)!.add(ws);
-
-        console.log(`Writer ${writerId} connected for inbox`);
-        return;
-      }
-
-    } catch (err) {
-      //console.error("Failed to apply Y.js update:", err);
-      //NOT JSON → YJS UPDATE
-      const uint8Array = new Uint8Array(message);
-
-      console.log("converted uint8Array: ", uint8Array);
-      Y.applyUpdate(doc, uint8Array);
-
+      Y.applyUpdate(doc, update);
       sessionClients.forEach((client) => {
-        if (client.ws !== ws && client.ws.readyState === 1) {
-          client.ws.send(message);
+        if (
+          client.ws !== ws &&
+          client.ws.readyState === WebSocket.OPEN
+        ) {
+          client.ws.send(update);
         }
       });
+    } catch (err) {
+      console.error("Failed to apply Yjs update:", err);
     }
   });
 
   ws.on("close", () => {
     console.log(
-      `Client ${userName} (${userId}) disconnected from session: ${sessionId}`
+      `Yjs Client ${userName}/${userId} disconnected from ${sessionId}`
     );
 
-    // Remove client from session
     sessionClients.delete(clientInfo);
 
-    // Broadcast user left event to remaining clients
-    const leaveMessage = JSON.stringify({
-      type: "user-left",
-      data: {
-        userId,
-        userName,
-        participantCount: sessionClients.size,
-        timestamp: Date.now(),
-      },
-    });
-
-    sessionClients.forEach((client) => {
-      if (client.ws.readyState === 1) {
-        client.ws.send(leaveMessage);
-      }
-    });
-    // clean writer's connections
-    writerConnections.forEach((clients, writerId) => {
-      if (clients.has(ws)) {
-        clients.delete(ws);
-        if (clients.size === 0) {
-          writerConnections.delete(writerId);
-        }
-      }
-    });
-
-
-    // Clean up if no clients left
     if (sessionClients.size === 0) {
       sessions.delete(sessionId);
-      console.log(`Session ${sessionId} is now empty, cleaned up`);
+
+      console.log(
+        `Session ${sessionId} became empty`
+      );
     }
   });
 
-  ws.on("error", (error) => {
-    console.error(`WebSocket error for user ${userName}:`, error);
+  ws.on("error", (err) => {
+    console.error(
+      `Yjs websocket error (${userName}):`,
+      err
+    );
   });
 });
+writerWss.on("connection", (ws) => {
+  console.log("Writer websocket connected.");
 
-// function handleCustomMessage(
-//   ws: any,
-//   message: any,
-//   sessionId: string,
-//   sessionClients: Set<ClientInfo>
-// ) {
-//   switch (message.type) {
-//     case "chat":
-//       // Broadcast chat message to all clients in session
-//       const chatMessage = JSON.stringify({
-//         type: "chat",
-//         data: {
-//           userId: message.userId,
-//           userName: message.userName,
-//           message: message.message,
-//           timestamp: Date.now(),
-//         },
-//       });
-//       sessionClients.forEach((client) => {
-//         if (client.ws.readyState === 1) {
-//           client.ws.send(chatMessage);
-//         }
-//       });
-//       break;
+  let registeredWriterId: string | null = null;
 
-//     default:
-//       console.log("Unknown custom message type:", message.type);
-//       break;
-//   }
-// }
+  ws.on("message", (message) => {
+    try {
+      const parsed = JSON.parse(message.toString());
 
-// Start server
+      switch (parsed.type) {
+        case "register-writer": {
+          const { writerId } = parsed;
+
+          if (!writerId) {
+            return;
+          }
+
+          registeredWriterId = writerId;
+
+          if (!writerConnections.has(writerId)) {
+            writerConnections.set(
+              writerId,
+              new Set<WebSocket>()
+            );
+          }
+
+          writerConnections
+            .get(writerId)!
+            .add(ws);
+
+          console.log(
+            `Writer ${writerId} registered`
+          );
+
+          ws.send(
+            JSON.stringify({
+              type: "registered",
+              writerId,
+            })
+          );
+
+          break;
+        }
+
+        case "ping": {
+          ws.send(
+            JSON.stringify({
+              type: "pong",
+            })
+          );
+          break;
+        }
+
+        default: {
+          console.log(
+            "Unknown writer websocket message:",
+            parsed
+          );
+        }
+      }
+    } catch (err) {
+      console.error(
+        "Invalid JSON received on writer websocket:",
+        err
+      );
+    }
+  });
+
+  ws.on("close", () => {
+    console.log("Writer websocket disconnected.");
+
+    if (
+      registeredWriterId &&
+      writerConnections.has(registeredWriterId)
+    ) {
+      const clients =
+        writerConnections.get(registeredWriterId)!;
+
+      clients.delete(ws);
+
+      if (clients.size === 0) {
+        writerConnections.delete(
+          registeredWriterId
+        );
+      }
+    }
+  });
+
+  ws.on("error", (err) => {
+    console.error(
+      "Writer websocket error:",
+      err
+    );
+  });
+});
 server.listen(PORT, () => {
-  console.log(`Server listening on http://localhost:${PORT}`);
-  console.log(`WebSocket server ready at ws://localhost:${PORT}/yjs`);
+  console.log("========================================");
+  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(
+    `Yjs WebSocket: ws://localhost:${PORT}/yjs`
+  );
+  console.log(
+    `Writer WebSocket  : ws://localhost:${PORT}/writer`
+  );
+  console.log("========================================");
 });

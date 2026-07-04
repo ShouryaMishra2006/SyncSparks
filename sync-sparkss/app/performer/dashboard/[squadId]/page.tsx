@@ -127,7 +127,7 @@ export default function SquadDashboard() {
       try {
         const res = await fetch(
           `http://localhost:4000/api/performer/squads/${squadId}`,
-          { credentials: "include" }
+          { credentials: "include" },
         );
         const data = await res.json();
         if (res.ok) {
@@ -147,7 +147,23 @@ export default function SquadDashboard() {
           credentials: "include",
         });
         const data = await res.json();
+        if (data.length == 0) {
+          let writers = [];
+          writers = [
+            {
+              name: "Shourya Mishra",
+              writer: {
+                writerId: "WRT-C30CBA9D",
+                location: {
+                  coordinates: [77.71232115218265, 12.964011951950484],
+                },
+              },
+            },
+          ];
+        }
         if (res.ok) setWriters(data);
+        console.log("something happening");
+        console.log("writers fetched: ", data);
       } catch (err) {
         console.error("Error fetching writers:", err);
       }
@@ -173,7 +189,7 @@ export default function SquadDashboard() {
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({ text: newIdea }),
-        }
+        },
       );
       const data = await res.json();
       if (res.ok) {
@@ -198,7 +214,7 @@ export default function SquadDashboard() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-        }
+        },
       );
       const data = await res.json();
       if (res.ok) {
@@ -234,7 +250,7 @@ export default function SquadDashboard() {
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({ ideas: lastIdeas }),
-        }
+        },
       );
       const data = await res.json();
       if (res.ok) {
@@ -252,7 +268,7 @@ export default function SquadDashboard() {
   const handleMindMap = async () => {
     if (!squad) return;
     const countStr = prompt(
-      "How many last ideas do you want to generate the mind map from?"
+      "How many last ideas do you want to generate the mind map from?",
     );
     if (!countStr) return;
 
@@ -274,7 +290,7 @@ export default function SquadDashboard() {
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({ ideas: lastIdeas }),
-        }
+        },
       );
 
       const data = await res.json();
@@ -302,7 +318,7 @@ export default function SquadDashboard() {
               color: node.color || "blue",
             },
             type: "customNode",
-          })
+          }),
         );
 
         const edgesFormatted = (data.edges as BackendEdge[]).map(
@@ -310,7 +326,7 @@ export default function SquadDashboard() {
             id: `edge-${index}`,
             source: String(edge.source),
             target: String(edge.target),
-          })
+          }),
         );
 
         setMindMapData({
@@ -344,7 +360,7 @@ export default function SquadDashboard() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-        }
+        },
       );
 
       const data = await res.json();
@@ -401,7 +417,7 @@ export default function SquadDashboard() {
   };
   const handleFetchWriters = async () => {
     const radius = Number(
-      (document.getElementById("radiusInput") as HTMLInputElement).value
+      (document.getElementById("radiusInput") as HTMLInputElement).value,
     );
     if (!radius) {
       alert("Please enter radius");
@@ -417,25 +433,60 @@ export default function SquadDashboard() {
           {
             headers: { "Content-Type": "application/json" },
             credentials: "include",
-          }
+          },
         );
         const writers = await response.json();
-        console.log(writers)
+        console.log("writers fetched:", writers);
+
         map.eachLayer((layer: any) => {
           if (layer.options?.pane === "markerPane") {
             map.removeLayer(layer);
           }
         });
         writers.forEach((w: any) => {
-          console.log(w.writer.location.coordinates[1])
-          console.log(w.writer.writerId)
+          const marker = leaflet.marker(
+            [
+              w.writer.location.coordinates[1],
+              w.writer.location.coordinates[0],
+            ],
+            { title: w.writer.writerId },
+          );
+
+          console.log(marker);
+
+          marker.addTo(map);
+
+          console.log(map.hasLayer(marker));
+          console.log(w.writer.location.coordinates[1]);
+          console.log(w.writer.location.coordinates[0]);
+          console.log(w.writer.writerId);
           leaflet
-            .marker([w.writer.location.coordinates[1], w.writer.location.coordinates[0]],{title:w.writer.writerId})
+            .circle(
+              [
+                w.writer.location.coordinates[1],
+                w.writer.location.coordinates[0],
+              ],
+              { title: w.writer.writerId },
+              {
+                radius: 50,
+                color: "red",
+                fillColor: "red",
+                fillOpacity: 1,
+              },
+            )
+            .addTo(map);
+          leaflet
+            .marker(
+              [
+                w.writer.location.coordinates[1],
+                w.writer.location.coordinates[0],
+              ],
+            )
             .addTo(map)
             .bindPopup(w.writer.writerId);
         });
         map.setView([lat, lng], 10);
-        console.log(lat)
+        console.log(lat);
         leaflet
           .marker([lat, lng], { title: "You" })
           .addTo(map)
@@ -457,7 +508,7 @@ export default function SquadDashboard() {
         {
           method: "DELETE",
           credentials: "include",
-        }
+        },
       );
 
       const data = await res.json();

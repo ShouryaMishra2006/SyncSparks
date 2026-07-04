@@ -36,62 +36,41 @@ interface DeveloperSquad {
 
 export default function WriterDashboard() {
   const { user } = useAuth();
-<<<<<<< HEAD
 
   console.log(user);
-=======
-  
-  console.log(user)
->>>>>>> dcae6e5bbfd994fa9c8c97c0ad29ceb6eeb72052
   const [ideas, setIdeas] = useState<IdeaInboxItem[]>([]);
   const [filteredIdeas, setFilteredIdeas] = useState<IdeaInboxItem[]>([]);
   const [selectedIdea, setSelectedIdea] = useState<IdeaInboxItem | null>(null);
   const [aiFlow, setAiFlow] = useState<Scene[]>([]);
   const [developerSquads, setDeveloperSquads] = useState<DeveloperSquad[]>([]);
   const [searchCode, setSearchCode] = useState<string>("");
-<<<<<<< HEAD
   const [searchedSquad, setSearchedSquad] = useState<DeveloperSquad | null>(
-    null
+    null,
   );
   const [genreFilter, setGenreFilter] = useState<string>("All");
-=======
-  const [searchedSquad, setSearchedSquad] = useState<DeveloperSquad | null>(null);
-  const [genreFilter, setGenreFilter] = useState<string>("All");
   // Initialize ideas from writer inbox
->>>>>>> dcae6e5bbfd994fa9c8c97c0ad29ceb6eeb72052
   useEffect(() => {
     if (user?.writer?.ideaInbox) {
       setIdeas(user.writer.ideaInbox);
       console.log("ideas for inbox", ideas);
     }
   }, [user?.writer?.ideaInbox]);
-<<<<<<< HEAD
-=======
 
-
-  // ===============================
-  //  WEBSOCKET (REAL-TIME)
-  // ===============================
   useEffect(() => {
     const writerId = user?.writer?.writerId;
 
     if (!writerId) return;
 
-
-   // if (!user?.writer?.writerId || !user?._id || !user?.name) return;
-
-    const socket = new WebSocket(
-      `ws://localhost:4000/yjs?sessionId=writerInbox&userId=${user._id}&userName=${user.name}`
-    );
+    const socket = new WebSocket("ws://localhost:4000/writer");
 
     socket.onopen = () => {
-      console.log("✅ WS Connected");
+      console.log("Writer WS Connected");
 
       socket.send(
         JSON.stringify({
           type: "register-writer",
           writerId,
-        })
+        }),
       );
     };
 
@@ -99,34 +78,39 @@ export default function WriterDashboard() {
       try {
         const data = JSON.parse(event.data);
 
-        if (data.type === "new-idea") {
-          setIdeas((prev) => {
-            //  avoid duplicates
-            if (
-              prev.some(
-                (i) => i.submittedAt === data.data.submittedAt
-              )
-            ) {
-              return prev;
-            }
-            return [data.data, ...prev];
-          });
+        switch (data.type) {
+          case "registered":
+            console.log("Writer registered:", data.writerId);
+            break;
+
+          case "new-idea":
+            setIdeas((prev) => {
+              if (prev.some((i) => i.submittedAt === data.data.submittedAt)) {
+                return prev;
+              }
+
+              return [data.data, ...prev];
+            });
+            break;
+
+          default:
+            console.log("Unknown message:", data);
         }
-      } catch {
-        // ignore YJS binary
+      } catch (err) {
+        console.error("Invalid JSON:", err);
       }
     };
 
-    socket.onclose = () => console.log("❌ WS Closed");
-    socket.onerror = (err) => console.error("WS Error:", err);
+    socket.onerror = (err) => {
+      console.error("Writer WS Error:", err);
+    };
+
+    socket.onclose = () => {
+      console.log("Writer WS Closed");
+    };
 
     return () => socket.close();
   }, [user]);
-
-
-
-  // Fetch all developer squads
->>>>>>> dcae6e5bbfd994fa9c8c97c0ad29ceb6eeb72052
   const fetchAllDeveloperSquads = async () => {
     try {
       const res = await fetch("http://localhost:4000/api/developer/squads", {
@@ -162,7 +146,7 @@ export default function WriterDashboard() {
       if (!res.ok) throw new Error(data.message);
 
       setIdeas((prev) =>
-        prev.filter((i) => i.submittedAt !== idea.submittedAt)
+        prev.filter((i) => i.submittedAt !== idea.submittedAt),
       );
 
       if (setSelected) setSelectedIdea(idea);
@@ -193,29 +177,31 @@ export default function WriterDashboard() {
     }
   };
   const updateLocation = () => {
-
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
-        console.log(latitude)
-        console.log(longitude)
-        const res=await fetch("http://localhost:4000/api/writer/update-location", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials :"include",
-          body: JSON.stringify({
-            lat: latitude,
-            lng: longitude,
-          }),
-        });
-        if(res.status==200){
+        console.log(latitude);
+        console.log(longitude);
+        const res = await fetch(
+          "http://localhost:4000/api/writer/update-location",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              lat: latitude,
+              lng: longitude,
+            }),
+          },
+        );
+        if (res.status == 200) {
           alert("Location updated!");
         }
       },
       (err) => {
         alert("Unable to fetch location.");
         console.error(err);
-      }
+      },
     );
   };
   const updateAiFlow = (index: number, value: string) => {
@@ -256,7 +242,7 @@ export default function WriterDashboard() {
     try {
       const res = await fetch(
         `http://localhost:4000/api/developer/squads/search?code=${searchCode}`,
-        { credentials: "include" }
+        { credentials: "include" },
       );
       const data = await res.json();
       if (data.success) setSearchedSquad(data.squad);
@@ -266,7 +252,7 @@ export default function WriterDashboard() {
     }
   };
   const genres = Array.from(
-    new Set(ideas.map((i) => i.genre).filter(Boolean))
+    new Set(ideas.map((i) => i.genre).filter(Boolean)),
   ) as string[];
 
   return (
@@ -304,7 +290,7 @@ export default function WriterDashboard() {
               <SelectContent>
                 <SelectItem value="All">All</SelectItem>
                 {Array.from(
-                  new Set(ideas.map((i) => i.genre).filter(Boolean))
+                  new Set(ideas.map((i) => i.genre).filter(Boolean)),
                 ).map((g) => (
                   <SelectItem key={g} value={g}>
                     {g}

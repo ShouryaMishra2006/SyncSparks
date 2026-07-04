@@ -13,6 +13,20 @@ const performerExtensionSchema = new mongoose.Schema({
     },
   ],
 })
+const locationSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      enum: ["Point"],
+    },
+    coordinates: {
+      type: [Number],
+    },
+  },
+  {
+    _id: false,
+  }
+);
 const writerExtensionSchema = new mongoose.Schema({
   writerId: {
     type: String,
@@ -44,9 +58,9 @@ const writerExtensionSchema = new mongoose.Schema({
     },
   ],
   location: {
-    type: { type: String, enum: ['Point'], required: true },//part of GeoJSON specification for mongodb GeoJSON queries $GeoWithin $Near etc
-    coordinates: { type: [Number], required: true } 
-  }
+    type: locationSchema,
+    default: undefined,
+  },
 });
 const developerExtensionSchema = new mongoose.Schema({
   squadsJoined: [
