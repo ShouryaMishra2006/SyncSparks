@@ -8,7 +8,10 @@ Empowering creators to take an idea from imagination → script → scene → si
 ![SyncSparks](https://github.com/ShouryaMishra2006/SyncSparks/blob/91d3f9f3ec8d2e1130f0b6dd9ba5e81eff2cdbf7/sync-sparkss/public/Screenshot%202025-10-14%20150400.png)
 ![SyncSparks ](https://github.com/ShouryaMishra2006/SyncSparks/blob/91d3f9f3ec8d2e1130f0b6dd9ba5e81eff2cdbf7/sync-sparkss/public/Screenshot%202025-10-14%20150859.png)
 ![SyncSparks ](https://github.com/ShouryaMishra2006/SyncSparks/blob/91d3f9f3ec8d2e1130f0b6dd9ba5e81eff2cdbf7/sync-sparkss/public/Screenshot%202025-10-14%20151210.png)
-![SyncSparks ](https://github.com/ShouryaMishra2006/SyncSparks/blob/91d3f9f3ec8d2e1130f0b6dd9ba5e81eff2cdbf7/sync-sparkss/public/Screenshot%202025-10-14%20151439.png)
+![SyncSparks ](https://github.com/ShouryaMishra2006/SyncSparks/blob/main/sync-sparkss/public/Screenshot%202026-07-04%20164014.png)
+![SyncSparks ](https://github.com/ShouryaMishra2006/SyncSparks/blob/main/sync-sparkss/public/Screenshot%202026-07-04%20164029.png)
+![SyncSparks ](https://github.com/ShouryaMishra2006/SyncSparks/blob/main/sync-sparkss/public/Screenshot%202026-07-04%20163821.png)
+
 
 # Vision
 
@@ -22,7 +25,9 @@ SyncSparks reimagines this by providing:
 
 3) Secure user management via OTP + Google OAuth
 
-4) AI-assisted creativity through Gemini 2.0 Flash and LangChain
+4) Live Code editor with animation preview (Real Code-to-Animation)
+
+5) AI-assisted creativity through Gemini 2.5 Flash and LangChain
 
 Our mission is to synchronize creative sparks into a unified masterpiece.
 
@@ -52,6 +57,8 @@ Advanced search & filter (text, date range)
 
 Send ideas directly to Writers (via Writer ID using MongoDB indexing)
 
+Search nearby Writers in map by entering radius(in km)
+
 # ✍️ Writer Dashboard
 
 Receives performer ideas categorized by genre (Fantasy, Comedy, Drama, etc.)
@@ -60,7 +67,7 @@ Expand ideas using Gemini + LangChain pipelines
 
 Edit and refine AI outputs
 
-Forward finalized ideas to developer squads for simulation creation
+Forward finalized ideas to developer squads for simulation creation with search filters according to squad ID
 
 # 💻 Developer Dashboard
 
@@ -68,15 +75,13 @@ Create or join private squads (invite code + password)
 
 Accept tasks from Writers/Directors
 
-Work inside a Scene Simulation Editor:
+Work inside a Scene Simulation Editor :
 
-Add/remove scenes
+Edit Code to change animation
 
-Visualize scene as moving dot simulations
+Take reference from a sample scene definition code
 
-Attach and version code snippets for each scene
-
-Sync commits or locally deployed changes collaboratively
+save work in real time so that other developer can directly continue from the code work of previous developer
 
 # 🎬 Collaboration Hub
 
@@ -98,9 +103,9 @@ Schema-level AI optimizations for smoother operations
 | **Backend**        | Node.js, Express.js                               |
 | **Database**       | MongoDB with Indexed Collections                  |
 | **Authentication** | OTP Verification, Google OAuth, HTTP-only Cookies |
-| **AI Layer**       | Gemini 2.0 Flash, LangChain                       |
+| **AI Layer**       | Gemini 2.5 Flash, LangChain                       |
 | **Real-Time Sync** | CRDT, WebSockets                                  |
-| **Visualization**  | React Flow, D3.js                                 |
+| **Visualization**  | React Flow, D3.js PixiJS                          |
 
 # Authentication & Security
 
@@ -116,7 +121,7 @@ Encrypted data and access tokens
 
 #  AI Integrations
 
-Gemini 2.0 Flash → Idea summarization, genre classification, creative expansion
+Gemini 2.5 Flash → Idea summarization, genre classification, creative expansion
 
 LangChain → Schema-level query optimization, context chaining, AI-assisted prompt optimization
 
