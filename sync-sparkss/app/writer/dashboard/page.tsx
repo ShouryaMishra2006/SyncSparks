@@ -36,24 +36,97 @@ interface DeveloperSquad {
 
 export default function WriterDashboard() {
   const { user } = useAuth();
+<<<<<<< HEAD
 
   console.log(user);
+=======
+  
+  console.log(user)
+>>>>>>> dcae6e5bbfd994fa9c8c97c0ad29ceb6eeb72052
   const [ideas, setIdeas] = useState<IdeaInboxItem[]>([]);
   const [filteredIdeas, setFilteredIdeas] = useState<IdeaInboxItem[]>([]);
   const [selectedIdea, setSelectedIdea] = useState<IdeaInboxItem | null>(null);
   const [aiFlow, setAiFlow] = useState<Scene[]>([]);
   const [developerSquads, setDeveloperSquads] = useState<DeveloperSquad[]>([]);
   const [searchCode, setSearchCode] = useState<string>("");
+<<<<<<< HEAD
   const [searchedSquad, setSearchedSquad] = useState<DeveloperSquad | null>(
     null
   );
   const [genreFilter, setGenreFilter] = useState<string>("All");
+=======
+  const [searchedSquad, setSearchedSquad] = useState<DeveloperSquad | null>(null);
+  const [genreFilter, setGenreFilter] = useState<string>("All");
+  // Initialize ideas from writer inbox
+>>>>>>> dcae6e5bbfd994fa9c8c97c0ad29ceb6eeb72052
   useEffect(() => {
     if (user?.writer?.ideaInbox) {
       setIdeas(user.writer.ideaInbox);
       console.log("ideas for inbox", ideas);
     }
   }, [user?.writer?.ideaInbox]);
+<<<<<<< HEAD
+=======
+
+
+  // ===============================
+  //  WEBSOCKET (REAL-TIME)
+  // ===============================
+  useEffect(() => {
+    const writerId = user?.writer?.writerId;
+
+    if (!writerId) return;
+
+
+   // if (!user?.writer?.writerId || !user?._id || !user?.name) return;
+
+    const socket = new WebSocket(
+      `ws://localhost:4000/yjs?sessionId=writerInbox&userId=${user._id}&userName=${user.name}`
+    );
+
+    socket.onopen = () => {
+      console.log("✅ WS Connected");
+
+      socket.send(
+        JSON.stringify({
+          type: "register-writer",
+          writerId,
+        })
+      );
+    };
+
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        if (data.type === "new-idea") {
+          setIdeas((prev) => {
+            //  avoid duplicates
+            if (
+              prev.some(
+                (i) => i.submittedAt === data.data.submittedAt
+              )
+            ) {
+              return prev;
+            }
+            return [data.data, ...prev];
+          });
+        }
+      } catch {
+        // ignore YJS binary
+      }
+    };
+
+    socket.onclose = () => console.log("❌ WS Closed");
+    socket.onerror = (err) => console.error("WS Error:", err);
+
+    return () => socket.close();
+  }, [user]);
+
+
+
+  // Fetch all developer squads
+>>>>>>> dcae6e5bbfd994fa9c8c97c0ad29ceb6eeb72052
   const fetchAllDeveloperSquads = async () => {
     try {
       const res = await fetch("http://localhost:4000/api/developer/squads", {

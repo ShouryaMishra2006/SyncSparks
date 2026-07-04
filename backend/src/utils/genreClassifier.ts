@@ -1,4 +1,3 @@
-// backend/src/utils/genreClassifier.ts
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { PromptTemplate } from "@langchain/core/prompts";
 import { RunnableSequence } from "@langchain/core/runnables";
@@ -30,7 +29,7 @@ export interface GenreClassificationResult {
 // ====================
 
 const gemini = new ChatGoogleGenerativeAI({
-  model: "gemini-2.0-flash",
+  model: "models/gemini-2.5-flash",
   apiKey: process.env.GOOGLE_API_KEY!,
   temperature: 0.3,
 });

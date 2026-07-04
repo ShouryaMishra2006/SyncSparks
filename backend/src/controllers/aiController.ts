@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { PromptTemplate } from "@langchain/core/prompts";
 import PerformerSquad from "../models/PerformerSquad";
-
 export const summarizeIdeas = async (req: Request, res: Response) => {
   try {
     const { id } = req.params; // optional squad id
@@ -49,7 +48,7 @@ ${formattedIdeas}
 `;
 
     const llm = new ChatGoogleGenerativeAI({
-      model: "models/gemini-2.0-flash",
+      model: "models/gemini-2.5-flash",
       apiKey: process.env.GOOGLE_API_KEY,
       temperature: 0.3,
     });
