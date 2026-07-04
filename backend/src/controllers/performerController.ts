@@ -128,7 +128,7 @@ export const joinSquad = async (req: Request, res: Response) => {
 };
 export const getSquadDetails = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id);
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: "Invalid squad ID" });
     }

@@ -13,6 +13,93 @@ let Octokit;
 })();
 
 import axios from "axios";
+
+const PROMPT2D_ROOT = process.env.PROMPT2D_ROOT || "E:\\Private\\prompt2d";
+const PROMPT2D_PREVIEW_URL =
+  process.env.PROMPT2D_PREVIEW_URL || "http://localhost:5173";
+const PROMPT2D_DEMO_SCENE_PATH = path.join(
+  PROMPT2D_ROOT,
+  "src",
+  "constants",
+  "demo-scene.ts"
+);
+const PROMPT2D_REFERENCE_SCENE_PATH = path.join(
+  PROMPT2D_ROOT,
+  "src",
+  "constants",
+  "demo-scene-tester.ts"
+);
+
+export const getPrompt2dDemoScene = async (_req: Request, res: Response) => {
+  try {
+    const [code, referenceCode] = await Promise.all([
+      fs.readFile(PROMPT2D_DEMO_SCENE_PATH, "utf8"),
+      fs.readFile(PROMPT2D_REFERENCE_SCENE_PATH, "utf8").catch(() => ""),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      connected: true,
+      prompt2dRoot: PROMPT2D_ROOT,
+      demoScenePath: PROMPT2D_DEMO_SCENE_PATH,
+      referenceScenePath: PROMPT2D_REFERENCE_SCENE_PATH,
+      previewUrl: PROMPT2D_PREVIEW_URL,
+      code,
+      referenceCode,
+    });
+  } catch (error) {
+    console.error("getPrompt2dDemoScene error:", error);
+    return res.status(500).json({
+      success: false,
+      connected: false,
+      prompt2dRoot: PROMPT2D_ROOT,
+      demoScenePath: PROMPT2D_DEMO_SCENE_PATH,
+      previewUrl: PROMPT2D_PREVIEW_URL,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Unable to read prompt2d demo-scene.ts",
+    });
+  }
+};
+
+export const updatePrompt2dDemoScene = async (req: Request, res: Response) => {
+  try {
+    const { code } = req.body;
+
+    if (typeof code !== "string" || !code.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "demo-scene.ts code is required.",
+      });
+    }
+
+    await fs.writeFile(PROMPT2D_DEMO_SCENE_PATH, code, "utf8");
+
+    return res.status(200).json({
+      success: true,
+      connected: true,
+      prompt2dRoot: PROMPT2D_ROOT,
+      demoScenePath: PROMPT2D_DEMO_SCENE_PATH,
+      previewUrl: PROMPT2D_PREVIEW_URL,
+      message: "prompt2d demo-scene.ts updated.",
+    });
+  } catch (error) {
+    console.error("updatePrompt2dDemoScene error:", error);
+    return res.status(500).json({
+      success: false,
+      connected: false,
+      prompt2dRoot: PROMPT2D_ROOT,
+      demoScenePath: PROMPT2D_DEMO_SCENE_PATH,
+      previewUrl: PROMPT2D_PREVIEW_URL,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Unable to save prompt2d demo-scene.ts",
+    });
+  }
+};
+
 export const createDeveloperSquad = async (req: Request, res: Response) => {
   try {
     const { name, description, password } = req.body;

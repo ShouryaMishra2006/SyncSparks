@@ -6,6 +6,12 @@ import dynamic from "next/dynamic";
 import { Stage, Layer, Line } from "react-konva";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import Prompt2DWorkspace from "@/components/Prompt2DWorkspace";
+import {
+  DrawingLine,
+  DrawingLineFlyweightFactory,
+  LineStyleFlyweightFactory,
+} from "@/lib/canvasFlyweight";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
@@ -27,7 +33,7 @@ export default function EditorPage() {
   const [request, setRequest] = useState<any | null>(null);
   const [aiFlow, setAiFlow] = useState<Scene[]>([]);
   const [curSceneIdx, setCurSceneIdx] = useState(0);
-  const [lines, setLines] = useState<any[]>([]);
+  const [lines, setLines] = useState<DrawingLine[]>([]);
   const isDrawing = useRef(false);
   const [code, setCode] = useState<string>("");
 
@@ -57,7 +63,7 @@ export default function EditorPage() {
     isDrawing.current = true;
     const pos = e.target.getStage().getPointerPosition();
     if (!pos) return;
-    setLines((l) => [...l, { points: [pos.x, pos.y] }]);
+    setLines((l) => [...l, DrawingLineFlyweightFactory.create([pos.x, pos.y])]);
   };
   const handleMouseMove = (e: any) => {
     if (!isDrawing.current) return;
@@ -67,10 +73,11 @@ export default function EditorPage() {
     setLines((prev) => {
       const last = prev[prev.length - 1];
       if (!last) return prev;
-      const updatedLast = {
-        ...last,
-        points: last.points.concat([point.x, point.y]),
-      };
+      const updatedLast = DrawingLineFlyweightFactory.appendPoint(
+        last,
+        point.x,
+        point.y
+      );
       return [...prev.slice(0, -1), updatedLast];
     });
   };
@@ -289,14 +296,11 @@ if(s.mediaUrl){d.innerHTML += '<img src="'+s.mediaUrl+'" style="max-width:100%"/
               style={{ border: "1px solid #999", background: "#fff" }}
             >
               <Layer>
-                {lines.map((l, idx) => (
+                {lines.map((l) => (
                   <Line
-                    key={idx}
+                    key={l.id}
                     points={l.points}
-                    stroke="black"
-                    strokeWidth={2}
-                    tension={0.5}
-                    lineCap="round"
+                    {...LineStyleFlyweightFactory.get(l.styleKey)}
                   />
                 ))}
               </Layer>
@@ -343,6 +347,9 @@ if(s.mediaUrl){d.innerHTML += '<img src="'+s.mediaUrl+'" style="max-width:100%"/
           </div>
         </section>
       </main>
+      <div className="bg-gray-950 p-4">
+        <Prompt2DWorkspace />
+      </div>
     </div>
   );
 }

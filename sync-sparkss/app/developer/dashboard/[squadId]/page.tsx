@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/app/context/AuthContext";
+import Prompt2DWorkspace from "@/components/Prompt2DWorkspace";
 
 type RequestItem = {
   _id: string;
@@ -166,6 +167,8 @@ export default function DeveloperDashboardPage() {
             ))}
           </div>
         </div>
+
+        <Prompt2DWorkspace />
       </div>
     </div>
   );

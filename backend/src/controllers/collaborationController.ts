@@ -109,7 +109,7 @@ export const joinSession = async (req: Request, res: Response) => {
 
 export const getSessionDetails = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id);
     const user = req.user as AuthUser;
 
     if (!user) {
@@ -150,7 +150,7 @@ export const getSessionDetails = async (req: Request, res: Response) => {
 //and then after exiting, or maybe every 1 minute, store it in the db
 export const saveCanvasData = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id);
     const { canvasData } = req.body;
     const user = req.user as AuthUser;
 
@@ -190,7 +190,7 @@ export const saveCanvasData = async (req: Request, res: Response) => {
 
 export const getCanvasData = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id);
     const user = req.user as AuthUser;
 
     if (!user) {
@@ -226,7 +226,7 @@ export const getCanvasData = async (req: Request, res: Response) => {
 
 export const leaveSession = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id);
     const user = req.user as AuthUser;
 
     if (!user) {
@@ -260,7 +260,7 @@ export const leaveSession = async (req: Request, res: Response) => {
 
 export const getConnectedUsers = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id);
     const user = req.user as AuthUser;
 
     if (!user) {

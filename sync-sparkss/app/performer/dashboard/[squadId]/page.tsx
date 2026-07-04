@@ -10,6 +10,7 @@ import { useAuth } from "@/app/context/AuthContext";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { MapPin } from "lucide-react";
+import StaticBackgroundBubbles from "@/components/StaticBackgroundBubbles";
 
 import "leaflet/dist/leaflet.css";
 const MindMapView = dynamic(() => import("@/components/MindMap"), {
@@ -478,36 +479,7 @@ export default function SquadDashboard() {
 
   return (
     <div className="min-h-screen text-white p-6 relative">
-      {/* Animated background */}
-      <motion.div
-        className="absolute inset-0 -z-10 overflow-hidden"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 1 }}
-      >
-        {[...Array(6)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute rounded-full opacity-30"
-            style={{
-              width: `${80 + i * 40}px`,
-              height: `${80 + i * 40}px`,
-              background: `hsl(${i * 60}, 70%, 60%)`,
-              top: `${Math.random() * 100}%`,
-              left: `${Math.random() * 100}%`,
-            }}
-            animate={{
-              x: [0, Math.random() * 200 - 100, 0],
-              y: [0, Math.random() * 200 - 100, 0],
-            }}
-            transition={{
-              repeat: Infinity,
-              duration: 12 + i * 2,
-              ease: "easeInOut",
-            }}
-          />
-        ))}
-      </motion.div>
+      <StaticBackgroundBubbles />
 
       {/* Header */}
       <header className="flex justify-between items-center mb-8 border-b border-purple-700 pb-4">

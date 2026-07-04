@@ -1,10 +1,19 @@
-// src/utils/extractKeywords.ts
-import natural from "natural";
-// prefer named import for stopword to avoid CJS/ESM mismatch issues.
-// If your TS config uses `esModuleInterop: false`, use `const { removeStopwords } = require('stopword')`.
 import { removeStopwords } from "stopword";
 
 type IdeaLike = string | { text?: string | null };
+
+const singularize = (token: string) => {
+  if (token.endsWith("ies") && token.length > 4) return `${token.slice(0, -3)}y`;
+  if (token.endsWith("ses") && token.length > 4) return token.slice(0, -2);
+  if (token.endsWith("s") && token.length > 3) return token.slice(0, -1);
+  return token;
+};
+
+const stem = (token: string) =>
+  token
+    .replace(/(ingly|edly)$/g, "")
+    .replace(/(ing|ed|ly)$/g, "")
+    .replace(/(ment|ness|tion|ions)$/g, "");
 
 /**
  * Extract meaningful keywords from ideas.
@@ -21,12 +30,7 @@ export function extractKeywords(ideas: IdeaLike[], maxKeywords = 30): string[] {
 
   if (texts.length === 0) return [];
 
-  // --- 2. Setup NLP tools (fresh per call)
-  const tokenizer = new natural.WordTokenizer();
-  const nounInflector = new natural.NounInflector();
-  const stemmer = natural.PorterStemmer; // use .stem(token)
-
-  // --- 3. Custom stopwords (augment default stopword list for better signal)
+  // --- 2. Custom stopwords (augment default stopword list for better signal)
   const extraStopwords = [
     "also",
     "would",
@@ -42,7 +46,7 @@ export function extractKeywords(ideas: IdeaLike[], maxKeywords = 30): string[] {
     "use",
   ];
 
-  // --- 4. Clean, tokenize, remove stopwords, singularize tokens, stem tokens
+  // --- 3. Clean, tokenize, remove stopwords, singularize tokens, stem tokens
   // We'll maintain a mapping stem -> original token counts to return clean surface tokens later.
   const docsStemmed: string[][] = [];
   const stemToOriginalFreq: Record<string, Record<string, number>> = {};
@@ -57,7 +61,7 @@ export function extractKeywords(ideas: IdeaLike[], maxKeywords = 30): string[] {
       .replace(/\s+/g, " ")
       .trim();
 
-    const tokens = tokenizer.tokenize(cleaned);
+    const tokens = cleaned.split(/\s+/).filter(Boolean);
     console.log("tokens from tokenizerin mindmap", tokens)
 
     const filtered = removeStopwords(tokens, extraStopwords).filter(
@@ -65,10 +69,10 @@ export function extractKeywords(ideas: IdeaLike[], maxKeywords = 30): string[] {
     );
 
     // singularize (better merging of plurals), then stem for TF-IDF calculation
-    const normalized = filtered.map((tok) => nounInflector.singularize(tok));
+    const normalized = filtered.map((tok) => singularize(tok));
     console.log('filtered after stopwords', normalized)
 
-    const stemmed = normalized.map((tok) => stemmer.stem(tok));
+    const stemmed = normalized.map((tok) => stem(tok));
     console.log(stemmed)
 
     // record mapping stem -> original token frequencies
@@ -82,22 +86,28 @@ export function extractKeywords(ideas: IdeaLike[], maxKeywords = 30): string[] {
   }
   
 
-  // --- 5. Compute TF-IDF over stemmed terms (fresh instance)
-  const tfidf = new natural.TfIdf();
+  // --- 4. Compute a lightweight TF-IDF score over stemmed terms.
+  const documentFrequency: Record<string, number> = {};
   for (const doc of docsStemmed) {
-    tfidf.addDocument(doc.join(" "));
-  }
-console.log(tfidf)
-  // aggregate tfidf scores across all docs for each stemmed term
-  const aggScores: Record<string, number> = {};
-  for (let i = 0; i < docsStemmed.length; i++) {
-    const terms = tfidf.listTerms(i); // terms are the stem tokens we added
-    for (const item of terms) {
-      aggScores[item.term] = (aggScores[item.term] || 0) + item.tfidf;
-    }
+    new Set(doc).forEach((term) => {
+      documentFrequency[term] = (documentFrequency[term] || 0) + 1;
+    });
   }
 
-  // --- 6. Sort stems by score and map each stem back to best original token
+  const aggScores: Record<string, number> = {};
+  for (const doc of docsStemmed) {
+    const termFrequency: Record<string, number> = {};
+    doc.forEach((term) => {
+      termFrequency[term] = (termFrequency[term] || 0) + 1;
+    });
+
+    Object.entries(termFrequency).forEach(([term, count]) => {
+      const idf = Math.log((docsStemmed.length + 1) / ((documentFrequency[term] || 0) + 1)) + 1;
+      aggScores[term] = (aggScores[term] || 0) + count * idf;
+    });
+  }
+
+  // --- 5. Sort stems by score and map each stem back to best original token
   const sortedStems = Object.entries(aggScores)
     .sort((a, b) => b[1] - a[1])
     .map(([stem]) => stem);

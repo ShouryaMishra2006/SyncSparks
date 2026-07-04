@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { useAuth } from "@/app/context/AuthContext";
 import { useRouter } from "next/navigation";
+import StaticBackgroundBubbles from "@/components/StaticBackgroundBubbles";
 
 export default function CollaborationHub() {
   const { user, loading, isAuthenticated } = useAuth();
@@ -91,36 +92,7 @@ export default function CollaborationHub() {
 
   return (
     <div className="relative min-h-screen text-white overflow-hidden bg-gradient-to-b from-gray-900 via-black to-gray-950">
-      {/* Animated Background */}
-      <motion.div
-        className="absolute inset-0 -z-10 overflow-hidden"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 1 }}
-      >
-        {[...Array(6)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute rounded-full opacity-30"
-            style={{
-              width: `${80 + i * 40}px`,
-              height: `${80 + i * 40}px`,
-              background: `hsl(${i * 60}, 70%, 60%)`,
-              top: `${Math.random() * 100}%`,
-              left: `${Math.random() * 100}%`,
-            }}
-            animate={{
-              x: [0, Math.random() * 200 - 100, 0],
-              y: [0, Math.random() * 200 - 100, 0],
-            }}
-            transition={{
-              repeat: Infinity,
-              duration: 12 + i * 2,
-              ease: "easeInOut",
-            }}
-          />
-        ))}
-      </motion.div>
+      <StaticBackgroundBubbles />
 
       <div className="p-8">
         {/* Header */}
