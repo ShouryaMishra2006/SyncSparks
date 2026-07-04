@@ -154,6 +154,6 @@ Promotes AI-driven productivity in creative industries
 
 ## SyncSparks helps creators focus on art, not admin — turning imagination into reality faster than ever.
 
-![Demo Video](https://drive.google.com/file/d/1nZ3ROtOKeWXjrFRq9LljUe7CSGE7XwHy/view?usp=drive_link)
-![Code to Animation Github](https://github.com/Sahilgupta3224/Prompt2D)
+[Demo Video](https://drive.google.com/file/d/1nZ3ROtOKeWXjrFRq9LljUe7CSGE7XwHy/view?usp=drive_link)
+[Code to Animation Github](https://github.com/Sahilgupta3224/Prompt2D)
 
